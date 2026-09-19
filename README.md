@@ -131,14 +131,25 @@ that anonymous callers never reach the database, and that a rejection surfaces a
 a clean 401.
 
 **They cannot prove RLS itself** — that is enforced by Postgres and needs a real
-project. After applying the schema, check it by hand once:
+project. `scripts/verify_rls.py` does that part. Apply the schema, then:
 
-1. Sign up as two different users in two browsers.
-2. Add a contact and a memory as user A.
-3. Confirm user B sees an empty list.
-4. In the Supabase SQL editor, run
-   `select * from contact_profiles;` as each user via **Settings → API → Run as
-   role: authenticated** — each should see only their own rows.
+```bash
+python scripts/verify_rls.py --url https://<ref>.supabase.co --anon-key eyJ...
+```
+
+It signs up two throwaway accounts and attacks the boundary from both sides —
+straight at PostgREST, where RLS lives, and through the running backend. It
+checks that Bob cannot list, read by id, update or delete Alice's rows, cannot
+plant a row owned by her, and that the anon key alone reads nothing. Then it
+deletes the rows it made.
+
+It needs no service-role key on purpose: if it could reach another user's data
+with only an anon key and an ordinary login, so could anyone.
+
+One setup note — new projects have **Confirm email** on, so signup returns no
+session and the script cannot get tokens. Turn it off for the run
+(**Authentication → Sign In / Providers → Email**), then turn it back on. The
+two test users stay in **Authentication → Users**; delete them there.
 
 ---
 

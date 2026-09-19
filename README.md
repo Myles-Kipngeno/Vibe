@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 56 tests
+.venv\Scripts\python.exe -m pytest      # 91 tests
 ```
 
 ```bash
@@ -76,6 +76,72 @@ Switching providers is an environment change, not a code change — add a class 
 
 ---
 
+## Accounts (optional)
+
+By default the app runs in **local mode**: one user, one JSON file on this
+machine, no sign-in. That is the most private setup and it needs no
+configuration.
+
+Turning on **accounts** gives you sign-in and sync across devices:
+
+1. Create a project at <https://supabase.com>.
+2. Apply the schema — paste `supabase/schema.sql` into the SQL editor and run it
+   (or `supabase db push`). It creates the tables, enables Row Level Security on
+   every one of them, and adds a trigger that gives each new signup a profile.
+3. In Supabase, go to **Settings → API** and copy the project URL and the
+   **anon** key.
+4. Put both in `backend/.env`:
+
+   ```
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=eyJ...
+   ```
+
+5. Restart the backend. The app now asks you to sign in, and the frontend picks
+   up the settings automatically — nothing to configure there.
+
+To go back to local mode, blank those two values and restart.
+
+### How the isolation actually works
+
+This is the part worth understanding, because it is what makes it safe to put
+private conversations in a shared database.
+
+- **The backend queries Postgres as you.** Your access token is forwarded on
+  every request, so PostgREST runs the query under your identity and the RLS
+  policies decide what it can touch. Isolation is enforced by Postgres, not by
+  filters in application code — a bug in the backend can cause an error, but it
+  cannot hand you someone else's rows.
+- **The service-role key is never used, and cannot be configured.** It bypasses
+  RLS entirely, which would make the backend the security boundary. There is a
+  test asserting the app ignores it even if the environment variable is set.
+- **Clients cannot claim ownership of a row.** Every `user_id` column defaults to
+  `auth.uid()`, so the owner is decided by the database from your verified token.
+  The backend never sends that column.
+- **The anon key being public is fine.** That is what it is for: it identifies
+  the project, and grants nothing on its own. It is served from `/api/health` so
+  the frontend needs no build-time config.
+
+### What the tests do and do not prove
+
+`tests/test_supabase_store.py` and `tests/test_auth.py` (35 tests) run against a
+fake PostgREST. They prove the half this repo controls: that the user's own token
+is attached, that writes never name an owner, that filters are scoped correctly,
+that anonymous callers never reach the database, and that a rejection surfaces as
+a clean 401.
+
+**They cannot prove RLS itself** — that is enforced by Postgres and needs a real
+project. After applying the schema, check it by hand once:
+
+1. Sign up as two different users in two browsers.
+2. Add a contact and a memory as user A.
+3. Confirm user B sees an empty list.
+4. In the Supabase SQL editor, run
+   `select * from contact_profiles;` as each user via **Settings → API → Run as
+   role: authenticated** — each should see only their own rows.
+
+---
+
 ## How it is put together
 
 ```
@@ -91,18 +157,23 @@ backend/
       prompts.py         the one place the model's rules are written
       generator.py       the gates: nothing is generated past a block
     providers/           swappable model backends (anthropic, offline mock)
-    storage/store.py     local JSON store; Supabase drops in behind this
+    storage/base.py      the storage contract both backends implement
+    storage/store.py     local JSON store (default, no account needed)
+    storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 56 tests, realistic conversations, fictional names
+  tests/                 91 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
-supabase/schema.sql      Phase 2 tables + Row Level Security (not in use yet)
+  src/lib/auth.ts        Supabase Auth only -- the browser never queries the DB
+supabase/schema.sql      tables, owner-only RLS policies, signup trigger
 ```
 
-**Analysis runs locally and never leaves your machine.** Only reply *generation*
-sends conversation text to the configured AI provider — and only when you press
-the button.
+**Analysis runs on your own backend and the conversation is never stored.** Only
+reply *generation* sends conversation text anywhere — to the AI provider you
+configured, and only when you press the button. With accounts on, what travels to
+Supabase is your profile, contacts and saved memories; the conversation text
+itself does not.
 
 ---
 
@@ -128,8 +199,10 @@ testable and why it works with no API key:
 
 ## Privacy
 
-- Conversations are never written to disk. What is stored: your style profile,
-  your contacts, and the context you explicitly chose to remember.
+- Conversations are never stored. What is kept: your style profile, your
+  contacts, and the context you explicitly chose to remember.
+- With accounts on, that data is isolated per user by Row Level Security.
+  Your password goes to Supabase Auth and never touches this app.
 - Message bodies are kept out of the server logs (`LOG_MESSAGE_CONTENT=false`).
 - Contact memories are isolated — nothing crosses from one contact to another.
 - **Settings → Delete everything** wipes it all, irreversibly.
@@ -143,8 +216,8 @@ testable and why it works with no API key:
 Wait → goodnight and next-morning, with contact memory, style learning and
 feedback.
 
-**Phase 2 — personalisation.** Supabase auth and RLS (`supabase/schema.sql`),
-feedback actually feeding generation, better Sheng.
+**Phase 2 — personalisation.** Supabase auth and RLS are **done** (see Accounts
+above). Still to come: feedback actually feeding generation, and better Sheng.
 
 **Phase 3 — human texture.** The curated example library, and evaluation sets
 built from real conversations. Screenshots do not retrain a model; they build a

@@ -70,14 +70,51 @@ export default function Settings({
         )}
       </Card>
 
+      <Card
+        title="Account"
+        subtitle={
+          health?.auth_required
+            ? "Signed in. Your data is isolated at the database level."
+            : "Local mode -- no account needed."
+        }
+      >
+        {health?.auth_required ? (
+          <ul className="space-y-2 text-xs leading-relaxed text-muted">
+            <li>
+              • Your profile, contacts and memories live in Supabase under your user
+              id.
+            </li>
+            <li>
+              • Every table has Row Level Security with an owner-only policy, so
+              another account cannot read your rows even if the app had a bug.
+            </li>
+            <li>
+              • The backend queries the database <em>as you</em>, using your own
+              access token. It never uses a service-role key, which would bypass
+              those policies.
+            </li>
+            <li>• Your password goes to Supabase Auth, never to this app.</li>
+          </ul>
+        ) : (
+          <ul className="space-y-2 text-xs leading-relaxed text-muted">
+            <li>• Everything is in one file on this machine. Nothing is synced.</li>
+            <li>
+              • To switch on accounts: apply <code>supabase/schema.sql</code> to a
+              Supabase project, then set <code>SUPABASE_URL</code> and{" "}
+              <code>SUPABASE_ANON_KEY</code> in <code>backend/.env</code> and restart.
+            </li>
+          </ul>
+        )}
+      </Card>
+
       <Card title="Privacy" subtitle="What leaves this machine, and what does not.">
         <ul className="space-y-2 text-xs leading-relaxed text-muted">
           {health?.notes.map((note, i) => (
             <li key={i}>• {note}</li>
           ))}
-          <li>• Conversations themselves are never written to disk.</li>
+          <li>• Conversations themselves are never stored.</li>
           <li>
-            • Stored on disk: your style profile, contacts, and the context you chose to
+            • Stored: your style profile, contacts, and the context you chose to
             remember. Nothing else.
           </li>
           <li>• Message bodies are kept out of the server logs.</li>

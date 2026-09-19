@@ -132,4 +132,8 @@ export interface Health {
   model?: string | null;
   notes: string[];
   warnings: string[];
+  auth_required: boolean;
+  supabase_url?: string | null;
+  /** The public anon key. RLS, not secrecy, is what protects the data. */
+  supabase_anon_key?: string | null;
 }

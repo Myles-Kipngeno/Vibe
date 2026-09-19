@@ -1,12 +1,19 @@
 -- Vibe -- Postgres/Supabase schema.
 --
--- STATUS: not yet in use. The MVP stores everything in a local JSON file
--- (backend/app/storage/store.py) because there is no auth yet, and private
--- conversations should not sit in a shared database without Row Level Security
--- actually protecting them. This file is the target for Phase 2, and the
--- `Store` class was written against these same shapes so the swap is contained.
+-- Apply this once per project. The backend switches from single-user local
+-- storage to accounts as soon as SUPABASE_URL and SUPABASE_ANON_KEY are set;
+-- until then it keeps using the local JSON store and none of this is touched.
+-- Both backends implement the same interface (backend/app/storage/base.py).
 --
--- Apply with:  supabase db push   (or paste into the SQL editor)
+-- Apply with:  supabase db push   (or paste the whole file into the SQL editor)
+--
+-- Two things carry the security here, and both matter:
+--   1. Every `user_id` defaults to `auth.uid()`, so a client physically cannot
+--      create a row owned by someone else -- it never gets to send the column.
+--   2. Every table has RLS enabled with an owner-only policy, so reads and
+--      writes are filtered by Postgres rather than by application code.
+-- The backend uses only the anon key plus the caller's own access token. The
+-- service-role key bypasses RLS and is never used.
 
 -- ---------------------------------------------------------------------------
 -- Profiles: one row per authenticated user.
@@ -22,7 +29,7 @@ create table if not exists public.profiles (
 -- How the user texts. One row per user; every column is user-editable.
 -- ---------------------------------------------------------------------------
 create table if not exists public.communication_preferences (
-  user_id               uuid primary key references public.profiles (id) on delete cascade,
+  user_id               uuid primary key default auth.uid() references public.profiles (id) on delete cascade,
   sheng_ratio           real not null default 0.4 check (sheng_ratio between 0 and 1),
   avg_message_length    int  not null default 9  check (avg_message_length > 0),
   emoji_frequency       real not null default 0.3 check (emoji_frequency between 0 and 1),
@@ -43,7 +50,7 @@ create table if not exists public.communication_preferences (
 -- ---------------------------------------------------------------------------
 create table if not exists public.contact_profiles (
   id                   uuid primary key default gen_random_uuid(),
-  user_id              uuid not null references public.profiles (id) on delete cascade,
+  user_id              uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   name                 text not null,
   nickname             text,
   notes                text not null default '',
@@ -62,7 +69,7 @@ create index if not exists contact_profiles_user_idx on public.contact_profiles 
 -- ---------------------------------------------------------------------------
 create table if not exists public.conversation_memories (
   id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references public.profiles (id) on delete cascade,
+  user_id    uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   contact_id uuid not null references public.contact_profiles (id) on delete cascade,
   key        text not null,
   value      text not null,
@@ -82,7 +89,7 @@ create index if not exists conversation_memories_contact_idx
 -- ---------------------------------------------------------------------------
 create table if not exists public.conversations (
   id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references public.profiles (id) on delete cascade,
+  user_id    uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   contact_id uuid references public.contact_profiles (id) on delete set null,
   title      text,
   goal       text,
@@ -92,7 +99,7 @@ create table if not exists public.conversations (
 
 create table if not exists public.conversation_messages (
   id              uuid primary key default gen_random_uuid(),
-  user_id         uuid not null references public.profiles (id) on delete cascade,
+  user_id         uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   conversation_id uuid not null references public.conversations (id) on delete cascade,
   speaker         text not null check (speaker in ('me','them')),
   body            text not null,
@@ -110,7 +117,7 @@ create index if not exists conversation_messages_conv_idx
 -- ---------------------------------------------------------------------------
 create table if not exists public.context_alerts (
   id              uuid primary key default gen_random_uuid(),
-  user_id         uuid not null references public.profiles (id) on delete cascade,
+  user_id         uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   contact_id      uuid references public.contact_profiles (id) on delete cascade,
   kind            text not null,
   priority        text not null check (priority in ('low','normal','high')),
@@ -122,7 +129,7 @@ create table if not exists public.context_alerts (
 
 create table if not exists public.suggestion_feedback (
   id              uuid primary key default gen_random_uuid(),
-  user_id         uuid not null references public.profiles (id) on delete cascade,
+  user_id         uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   contact_id      uuid references public.contact_profiles (id) on delete set null,
   suggestion_id   text not null,
   suggestion_text text not null,
@@ -137,7 +144,7 @@ create table if not exists public.suggestion_feedback (
 -- ---------------------------------------------------------------------------
 create table if not exists public.conversation_examples (
   id            uuid primary key default gen_random_uuid(),
-  user_id       uuid not null references public.profiles (id) on delete cascade,
+  user_id       uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   situation     text,
   context       text,
   opening_line  text,

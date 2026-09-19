@@ -9,13 +9,15 @@ import logging
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .api import conversation, profiles
 from .api.deps import get_provider
 from .config import get_settings
 from .schemas import HealthResponse
+from .storage.base import StoreError
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("vibe")
@@ -56,6 +58,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.exception_handler(StoreError)
+async def _store_error(_: Request, exc: StoreError) -> JSONResponse:
+    """Storage failures reach the client as a clear status, never a 500 traceback."""
+    return JSONResponse(status_code=exc.status, content={"detail": str(exc)})
+
+
 app.include_router(conversation.router)
 app.include_router(profiles.style_router)
 app.include_router(profiles.contacts_router)
@@ -64,6 +72,9 @@ app.include_router(profiles.data_router)
 
 @app.get("/api/health", response_model=HealthResponse)
 def health() -> HealthResponse:
+    # Read settings per request rather than the module-level copy: configuration
+    # can change between the import and the call (notably in tests).
+    settings = get_settings()
     provider = get_provider()
     notes: list[str] = []
     if provider.is_mock:
@@ -75,6 +86,17 @@ def health() -> HealthResponse:
         "Conversation analysis and context alerts are computed locally and do not "
         "leave this machine."
     )
+    if settings.supabase_enabled:
+        notes.append(
+            "Signed-in mode: your profile, contacts and memories are stored in "
+            "Supabase and protected by Row Level Security, so only your account "
+            "can read them."
+        )
+    else:
+        notes.append(
+            "Local mode: everything is stored in a file on this machine and no "
+            "account is needed."
+        )
     if not provider.is_mock:
         notes.append(
             "Reply generation sends the conversation text to the configured AI "
@@ -99,4 +121,9 @@ def health() -> HealthResponse:
         model=provider.model,
         notes=notes,
         warnings=warnings,
+        auth_required=settings.supabase_enabled,
+        supabase_url=settings.supabase_url,
+        # Safe to serve: the anon key is meant to be public, and RLS is what
+        # actually protects the data. The service-role key is never loaded.
+        supabase_anon_key=settings.supabase_anon_key,
     )

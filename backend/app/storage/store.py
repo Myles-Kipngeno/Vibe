@@ -1,11 +1,9 @@
-"""Local JSON storage for the MVP.
+"""Local JSON storage: single-user mode, no account needed.
 
-Deliberately not Supabase yet. Every conversation this app touches is private,
-and until auth and Row Level Security are wired up (Phase 2) the safest place
-for that data is a file on the user's own machine. The `Store` interface below
-is narrow on purpose so a `SupabaseStore` can replace it without the API layer
-noticing: `supabase/schema.sql` already contains the matching tables and
-policies.
+This is what runs when Supabase is not configured. Everything stays in one JSON
+file on this machine, which is the most private option available and keeps the
+app usable offline. It implements the same `BaseStore` contract as
+`SupabaseStore`, so the API layer cannot tell them apart.
 """
 
 from __future__ import annotations
@@ -24,6 +22,7 @@ from ..schemas import (
     StyleProfile,
 )
 from ..core.style_profile import blank_profile
+from .base import BaseStore
 
 
 def _now() -> datetime:
@@ -34,7 +33,7 @@ def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
 
 
-class Store:
+class LocalStore(BaseStore):
     """A small, file-backed store. One process, one user, one JSON document."""
 
     def __init__(self, data_dir: Path) -> None:
@@ -198,20 +197,6 @@ class Store:
             contact.stated_boundaries.append(quote)
             self._save_contact(contact)
 
-    def memory_keys(self, contact_id: str | None) -> set[str]:
-        if not contact_id:
-            return set()
-        contact = self.get_contact(contact_id)
-        return {m.key for m in contact.memories} if contact else set()
-
-    def memory_lines(self, contact_id: str | None) -> list[str]:
-        if not contact_id:
-            return []
-        contact = self.get_contact(contact_id)
-        if not contact:
-            return []
-        return [f"{m.key} -> {m.value}" for m in contact.memories]
-
     # --- feedback ----------------------------------------------------------
 
     def add_feedback(self, payload: FeedbackCreate) -> None:
@@ -232,3 +217,7 @@ class Store:
         with self._lock:
             self._data = {"style_profile": None, "contacts": {}, "feedback": []}
             self._write()
+
+
+# Kept so existing imports and any external scripts keep working.
+Store = LocalStore

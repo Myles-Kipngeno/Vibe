@@ -54,6 +54,22 @@ class Settings:
         default_factory=lambda: _env_bool("LOG_MESSAGE_CONTENT", False)
     )
 
+    # --- Supabase (optional) ---------------------------------------------
+    # Setting both of these switches the app from single-user local storage to
+    # accounts. Only the *anon* key belongs here: it is safe to expose because
+    # Row Level Security is what protects the data. The service-role key would
+    # bypass RLS entirely and is deliberately not supported.
+    supabase_url: str | None = field(
+        default_factory=lambda: (os.getenv("SUPABASE_URL") or "").strip() or None
+    )
+    supabase_anon_key: str | None = field(
+        default_factory=lambda: (os.getenv("SUPABASE_ANON_KEY") or "").strip() or None
+    )
+
+    @property
+    def supabase_enabled(self) -> bool:
+        return bool(self.supabase_url and self.supabase_anon_key)
+
     @property
     def resolved_provider(self) -> str:
         """`auto` picks Claude when a key is present, otherwise the offline mock."""

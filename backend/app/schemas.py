@@ -248,3 +248,17 @@ class HealthResponse(BaseModel):
         default_factory=list,
         description="Configuration problems the user needs to fix, shown prominently.",
     )
+    auth_required: bool = Field(
+        False, description="True when Supabase accounts are configured and sign-in is required"
+    )
+    supabase_url: Optional[str] = Field(
+        None, description="Public project URL, so the frontend can reach Supabase Auth"
+    )
+    supabase_anon_key: Optional[str] = Field(
+        None,
+        description=(
+            "The Supabase *anon* key. Public by design: it grants nothing on its "
+            "own, because Row Level Security decides what any token can reach. "
+            "Serving it here means the frontend needs no build-time configuration."
+        ),
+    )

@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/* Design tokens. Tailwind v4 reads these as utilities (bg-surface, text-ink...) */
+@theme {
+  --color-void: #0b0711;
+  --color-surface: #140d1f;
+  --color-raised: #1c1329;
+  --color-line: #2c2040;
+  --color-accent: #a855f7;
+  --color-accent-soft: #6d28d9;
+  --color-ink: #f4f1f8;
+  --color-muted: #a396b8;
+  --color-warn: #fbbf24;
+  --color-danger: #f87171;
+  --color-good: #4ade80;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A soft purple wash so the app reads as a private space, not a web form. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(168, 85, 247, 0.16), transparent 60%),
+    radial-gradient(50rem 35rem at 100% 0%, rgba(109, 40, 217, 0.12), transparent 55%);
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+textarea,
+input,
+select {
+  color-scheme: dark;
+}
+
+/* Scrollbars that do not break the dark surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 9999px;
+}

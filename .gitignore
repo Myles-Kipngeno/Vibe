@@ -1,0 +1,23 @@
+# Secrets -- never commit
+.env
+.env.local
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local data store (private conversations context)
+backend/data/
+
+# Node
+node_modules/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

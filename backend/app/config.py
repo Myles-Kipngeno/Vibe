@@ -36,6 +36,25 @@ LOCAL_HOSTS: frozenset[str] = frozenset(
 )
 
 
+# Environment variables set by hosts that put a service on a public URL. None
+# of them is a secret or a guarantee -- they are simply the plainest evidence
+# available, from inside the process, that it is not running on a laptop.
+HOSTED_MARKERS: tuple[str, ...] = (
+    "RENDER",                 # Render
+    "FLY_APP_NAME",           # Fly.io
+    "RAILWAY_ENVIRONMENT",    # Railway
+    "DYNO",                   # Heroku
+    "K_SERVICE",              # Google Cloud Run
+    "WEBSITE_INSTANCE_ID",    # Azure App Service
+    "VERCEL",                 # Vercel
+)
+
+
+def on_a_hosting_platform() -> bool:
+    """Whether a platform that serves public traffic is running this."""
+    return any(os.getenv(marker) for marker in HOSTED_MARKERS)
+
+
 def is_local_origin(origin: str) -> bool:
     """Whether a CORS origin refers to this machine."""
     from urllib.parse import urlparse
@@ -85,6 +104,9 @@ class Settings:
     def supabase_enabled(self) -> bool:
         return bool(self.supabase_url and self.supabase_anon_key)
 
+    # Set from the environment at startup; overridable in tests.
+    hosted: bool = field(default_factory=on_a_hosting_platform)
+
     @property
     def public_origins(self) -> tuple[str, ...]:
         """Configured origins that are not this machine."""
@@ -95,15 +117,18 @@ class Settings:
         """True when the app would serve private data to anyone who can reach it.
 
         Local mode has no sign-in because it has never needed one: the backend
-        listens on this machine and nobody else can ask it anything. Configuring
-        a CORS origin somewhere else is the moment that stops being true, and
-        every endpoint -- the contacts, everything remembered, the one that
-        deletes all of it -- is then open to whoever finds the URL.
+        listens on this machine and nobody else can ask it anything. Two things
+        end that, and both have to be caught.
 
-        Nothing here can tell what address uvicorn is bound to, but naming a
-        public origin is a deliberate act and a reliable signal of intent.
+        Naming a CORS origin elsewhere is the deliberate one. The other is
+        simply being deployed -- which the first version of this check missed,
+        because CORS looked like a sufficient proxy for exposure and is not.
+        CORS is enforced by browsers; a public URL with the default localhost
+        origins is still wide open to anything that is not a browser, which is
+        every tool anyone would actually point at it.
         """
-        return bool(self.public_origins) and not self.supabase_enabled
+        exposed = bool(self.public_origins) or self.hosted
+        return exposed and not self.supabase_enabled
 
     @property
     def resolved_provider(self) -> str:
@@ -120,14 +145,20 @@ def exposure_error(settings: "Settings") -> str:
     fixed, and the way this one would be worked around is by deleting the
     check.
     """
+    if settings.public_origins:
+        reason = "CORS_ORIGINS names " + ", ".join(settings.public_origins)
+        way_out = "or keep CORS_ORIGINS on localhost"
+    else:
+        reason = "this is running on a hosting platform, so it has a public URL"
+        way_out = "or run it on your own machine instead"
     return (
-        "Refusing to start: CORS_ORIGINS names "
-        + ", ".join(settings.public_origins)
+        "Refusing to start: "
+        + reason
         + ", but no Supabase project is configured. In local mode there is no "
         "sign-in, so every endpoint -- your contacts, everything you have had "
         "it remember, and DELETE /api/data -- would be open to anyone who can "
         "reach this server. Set SUPABASE_URL and SUPABASE_ANON_KEY (see the "
-        "README), or keep CORS_ORIGINS on localhost."
+        "README), " + way_out + "."
     )
 
 

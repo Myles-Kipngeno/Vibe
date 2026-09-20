@@ -45,7 +45,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 201 tests
+.venv\Scripts\python.exe -m pytest      # 217 tests
 ```
 
 ```bash
@@ -183,13 +183,14 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 201 tests, realistic conversations, fictional names
+  tests/                 217 tests, realistic conversations, fictional names
 frontend/
   public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
   src/lib/auth.ts        Supabase Auth only -- the browser never queries the DB
 supabase/schema.sql      tables, owner-only RLS policies, signup trigger
+render.yaml              the backend as a Render service, secrets prompted for
 evals/cases.json         fixed conversations and what each one must do
 scripts/run_evals.py     runs them; offline by default, --generate for real
 scripts/verify_sharing.mjs  drives both share directions without a browser
@@ -284,11 +285,15 @@ accounts (see **Accounts** above) before the backend leaves your machine.
 
 The two halves go to different places, and the order matters.
 
-**The backend needs a host that keeps a process running** — Fly, Render,
-Railway, a VPS. `backend/Dockerfile` is there for exactly that. It is
-deliberately not a serverless function: the local JSON store writes to disk,
-and a serverless filesystem is per-invocation, so local mode would appear to
-work and lose every write.
+**The backend needs a host that keeps a process running** — Render, Fly,
+Railway, a VPS. `render.yaml` is a blueprint for Render: create a Blueprint
+from this repository and the service arrives configured, prompting for the
+values that must not live in a public file. `backend/Dockerfile` is there for
+hosts that want an image instead.
+
+It is deliberately not a serverless function: the local JSON store writes to
+disk, and a serverless filesystem is per-invocation, so local mode would appear
+to work and lose every write.
 
 **Turn accounts on first.** This is not optional advice. In local mode there is
 no sign-in, because nothing outside this machine can ask the backend anything.
@@ -296,7 +301,10 @@ The moment it is reachable from elsewhere, every endpoint is open to whoever
 finds the URL — your contacts, everything you have had it remember, and
 `DELETE /api/data`, which wipes all of it. The app enforces this: name a
 non-localhost `CORS_ORIGINS` without `SUPABASE_URL` and `SUPABASE_ANON_KEY`
-set, and it refuses to start rather than serve.
+set, and it refuses to start rather than serve. It refuses on a hosting
+platform too, whatever CORS says — CORS is enforced by browsers, so a public
+URL with the default localhost origins is still open to anything that is not
+one.
 
 **The frontend goes to Vercel** (or any static host). Select the `frontend`
 directory on Vercel; `frontend/vercel.json` handles SPA routing and service worker

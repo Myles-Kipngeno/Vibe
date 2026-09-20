@@ -1,0 +1,61 @@
+# Render blueprint for the backend.
+#
+# Render reads this when you create a Blueprint from the repository, so the
+# service arrives configured rather than assembled by hand in a form.
+#
+# The frontend is not here: it goes to Vercel (frontend/vercel.json), and the
+# two halves are deployed in that order -- the frontend needs the backend's URL
+# and the backend needs the frontend's domain for CORS.
+#
+# Native Python rather than the Dockerfile. Both work; this one runs exactly
+# the commands the README documents, so what CI proves is what Render runs.
+# backend/Dockerfile stays for hosts that want an image.
+
+services:
+  - type: web
+    name: vibe-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    region: frankfurt # closest of Render's regions to Kenya
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    # Render restarts the service if this stops answering. It needs no auth and
+    # returns no private data -- see app/main.py.
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+
+      # Accounts are not optional here. The app refuses to start on a hosting
+      # platform without them, because local mode has no sign-in and every
+      # endpoint -- including the one that deletes everything -- would be open
+      # to whoever found the URL.
+      #
+      # sync: false means Render prompts for these and stores them itself. They
+      # are never written into this file, which is public.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+
+      # Set this to the Vercel domain once the frontend exists. Until then the
+      # default (localhost) is correct and the browser simply cannot call this
+      # from anywhere else.
+      - key: CORS_ORIGINS
+        sync: false
+
+      # Optional. Without it the app runs in offline mode: analysis and the
+      # gates are real, reply text comes from templates, and the UI says so.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: auto
+
+      # Message bodies are private and do not belong in a hosting provider's
+      # log retention.
+      - key: LOG_MESSAGE_CONTENT
+        value: "false"

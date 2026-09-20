@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Banner, Button } from "./components/ui";
 import { api, setUnauthorizedHandler } from "./lib/api";
+import { clearShareMarker, takeSharedText } from "./lib/share";
 import {
   configureAuth,
   getAccessToken,
@@ -36,12 +37,25 @@ export default function App() {
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [activeContact, setActiveContact] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [sharedText, setSharedText] = useState<string | null>(null);
 
   // null = not yet known. Until health tells us the mode, we render nothing
   // rather than flashing a sign-in screen at a local-mode user.
   const [authReady, setAuthReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+
+  // A share from another app opens the Workspace with the text already in it.
+  useEffect(() => {
+    void (async () => {
+      const text = await takeSharedText();
+      clearShareMarker();
+      if (text) {
+        setSharedText(text);
+        setTab("workspace");
+      }
+    })();
+  }, []);
 
   /** Loads the user's data. Separate from health so it can run after sign-in. */
   const loadData = useCallback(async () => {
@@ -212,6 +226,8 @@ export default function App() {
             setContactId={setActiveContact}
             isMock={health?.is_mock ?? true}
             onContactsChanged={loadData}
+            sharedText={sharedText}
+            onSharedTextUsed={() => setSharedText(null)}
           />
         )}
         {tab === "contacts" && (

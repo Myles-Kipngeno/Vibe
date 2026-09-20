@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 
 import App from "./App";
 import "./index.css";
+import { registerShareWorker } from "./lib/share";
+
+registerShareWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

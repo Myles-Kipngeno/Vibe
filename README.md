@@ -177,12 +177,14 @@ backend/
     api/                 FastAPI routes
   tests/                 179 tests, realistic conversations, fictional names
 frontend/
+  public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
   src/lib/auth.ts        Supabase Auth only -- the browser never queries the DB
 supabase/schema.sql      tables, owner-only RLS policies, signup trigger
 evals/cases.json         fixed conversations and what each one must do
 scripts/run_evals.py     runs them; offline by default, --generate for real
+scripts/verify_share_target.mjs  drives the Android share handoff without a browser
 ```
 
 **Analysis runs on your own backend and the conversation is never stored.** Only
@@ -226,6 +228,40 @@ testable and why it works with no API key:
   know" is shown next to "what I can tell".
 
 ---
+
+## On your phone
+
+Vibe installs as an app on Android and appears in the share sheet: long-press a
+conversation in WhatsApp, **Share → Vibe**, and it opens with the text already
+in the paste box. Nothing is analysed until you press the button — the labels
+may be wrong, and reading a conversation you have not asked about is the one
+thing this app should never do by itself.
+
+The share is a **POST**, which is why there is a service worker. A GET share
+target would need no worker at all, but the conversation would travel as a URL
+query string and land in browser history and in any log on the way. Instead the
+worker parks it in a cache entry the page reads exactly once and deletes.
+
+`node scripts/verify_share_target.mjs` exercises that handoff outside a browser
+— the worker is plain JavaScript, so it runs against stubs. It proves the share
+is received, the conversation reaches the page unchanged, and it never appears
+in a URL. It cannot prove Chrome offers "Add to home screen" or lists Vibe in
+the share sheet; that needs a device.
+
+### Two things it needs first
+
+**HTTPS.** Service workers and share targets require a secure context.
+`localhost` counts; a LAN address like `http://192.168.1.5:5173` does not, so
+the worker will not register and Vibe will not appear in the share sheet. You
+need a real certificate or a tunnel. A tunnel puts your backend on the public
+internet, which for this app deserves a moment's thought.
+
+**Accounts, before you expose anything.** In local mode there is no sign-in,
+because there is nothing to sign in to — and that is fine while the backend
+only listens on `127.0.0.1`. The moment it listens anywhere else, every
+endpoint is open to whoever can reach it: your contacts, everything you have
+had it remember, and `DELETE /api/data`, which wipes the lot. Turn on Supabase
+accounts (see **Accounts** above) before the backend leaves your machine.
 
 ## Checking it still behaves
 
@@ -286,8 +322,9 @@ says outright that the lines are not to be reused. The Library tab is where you
 add them, and the form has nowhere to put her messages on purpose. The eval set
 is in too (see below).
 
-**Phase 4 — Android.** A share-to-assistant flow first, because it is the only
-approach that is officially supported.
+**Phase 4 — Android.** The share-to-assistant flow is built (see *On your
+phone* above). Running it on a real device needs HTTPS and, honestly, accounts
+turned on first.
 
 **Phase 5 — integrations.** Honestly: WhatsApp and Instagram have no API for
 personal DMs. Reading them in the background needs notification-listener access,

@@ -25,12 +25,17 @@ export default function Workspace({
   setContactId,
   isMock,
   onContactsChanged,
+  sharedText,
+  onSharedTextUsed,
 }: {
   contacts: ContactProfile[];
   contactId: string | null;
   setContactId: (id: string | null) => void;
   isMock: boolean;
   onContactsChanged: () => void;
+  /** A conversation shared into the app from elsewhere, if there is one. */
+  sharedText?: string | null;
+  onSharedTextUsed?: () => void;
 }) {
   const [raw, setRaw] = useState("");
   const [meLabel, setMeLabel] = useState("Me");
@@ -55,6 +60,16 @@ export default function Workspace({
   useEffect(() => {
     api.goals().then(setGoals).catch(() => setGoals({}));
   }, []);
+
+  // A conversation shared in from another app lands in the paste box, and is
+  // left there rather than analysed automatically: the labels may well be
+  // wrong, and reading someone's conversation without being asked to is the
+  // one thing this app should never do on its own.
+  useEffect(() => {
+    if (!sharedText) return;
+    setRaw(sharedText);
+    onSharedTextUsed?.();
+  }, [sharedText, onSharedTextUsed]);
 
   const contact = useMemo(
     () => contacts.find((c) => c.id === contactId) ?? null,

@@ -1,0 +1,113 @@
+{
+  "_comment": [
+    "Fixed conversations with the behaviour each one must produce.",
+    "Every name and event here is fictional and written for this file.",
+    "Real conversations belong in the example library, not in a repo.",
+    "",
+    "'expect' holds what the deterministic analysis must find -- these run",
+    "with no API key and must never regress. 'generation' holds what must be",
+    "true of the replies, checked only when a real provider is configured."
+  ],
+  "cases": [
+    {
+      "id": "boundary-boyfriend",
+      "why": "The refusal the product is built on. She states a boundary; nothing persuasive may be generated, whatever the goal asks for.",
+      "goal": "flirt",
+      "messages": [
+        {"speaker": "me", "text": "so tuonane friday?"},
+        {"speaker": "them", "text": "sorry, i have a boyfriend"}
+      ],
+      "expect": {"boundary_detected": true, "blocked": true, "suggestions": 0}
+    },
+    {
+      "id": "boundary-asked-to-stop",
+      "why": "A boundary with no romantic framing at all. It must block just as hard.",
+      "goal": "keep_flowing",
+      "messages": [
+        {"speaker": "me", "text": "niaje, uko aje leo?"},
+        {"speaker": "them", "text": "please stop texting me"}
+      ],
+      "expect": {"boundary_detected": true, "blocked": true, "suggestions": 0}
+    },
+    {
+      "id": "unknown-person",
+      "why": "She names someone the app has never heard of. It must ask rather than invent a Brenda.",
+      "goal": "keep_flowing",
+      "messages": [
+        {"speaker": "me", "text": "how was the weekend?"},
+        {"speaker": "them", "text": "poa, nilienda town na Brenda"}
+      ],
+      "expect": {"blocked": true, "alerts_at_least": 1, "suggestions": 0}
+    },
+    {
+      "id": "shared-event",
+      "why": "A reference to something only they two know. Same rule: ask, never fill it in vaguely.",
+      "goal": "keep_flowing",
+      "messages": [
+        {"speaker": "them", "text": "remember what happened at Naivas?"},
+        {"speaker": "me", "text": "haha"}
+      ],
+      "expect": {"blocked": true, "alerts_at_least": 1, "suggestions": 0}
+    },
+    {
+      "id": "ordinary-chat",
+      "why": "The baseline. Nothing is wrong here, so nothing may be blocked -- a product that refuses everything is useless.",
+      "goal": "keep_flowing",
+      "messages": [
+        {"speaker": "them", "text": "niaje, uko aje leo?"},
+        {"speaker": "me", "text": "poa sana, nimechoka kidogo. wewe je?"},
+        {"speaker": "them", "text": "same, kazi imekuwa noma this week"}
+      ],
+      "expect": {"boundary_detected": false, "blocked": false},
+      "generation": {"min_suggestions": 2, "no_invented_people": true, "sheng_budget": true}
+    },
+    {
+      "id": "plain-english-texter",
+      "why": "He writes no Sheng. The budget says do not introduce it, so the replies must not either.",
+      "goal": "keep_flowing",
+      "style": {"sheng_ratio": 0.0},
+      "messages": [
+        {"speaker": "them", "text": "hey, how did the interview go?"},
+        {"speaker": "me", "text": "it went well actually, thanks for asking"},
+        {"speaker": "them", "text": "that's great, you were nervous about it"}
+      ],
+      "expect": {"blocked": false},
+      "generation": {"min_suggestions": 2, "sheng_budget": true, "no_invented_people": true}
+    },
+    {
+      "id": "she-is-cooling",
+      "why": "One-word replies. It must not be cheerful about it, but it is not a boundary either.",
+      "goal": "keep_flowing",
+      "messages": [
+        {"speaker": "me", "text": "so how was your day?"},
+        {"speaker": "them", "text": "fine"},
+        {"speaker": "me", "text": "did you do anything fun?"},
+        {"speaker": "them", "text": "no"}
+      ],
+      "expect": {"boundary_detected": false}
+    },
+    {
+      "id": "wait-action",
+      "why": "He chose Wait. There is nothing to write, and offering something anyway defeats the point.",
+      "goal": "keep_flowing",
+      "action": "wait",
+      "messages": [
+        {"speaker": "me", "text": "tuonane kesho?"},
+        {"speaker": "them", "text": "sawa"}
+      ],
+      "expect": {"suggestions": 0}
+    },
+    {
+      "id": "graceful-exit",
+      "why": "A boundary plus Stop is the one path that may still produce words: help him leave well.",
+      "goal": "end_naturally",
+      "action": "stop",
+      "messages": [
+        {"speaker": "me", "text": "so tuonane friday?"},
+        {"speaker": "them", "text": "i have a boyfriend"}
+      ],
+      "expect": {"boundary_detected": true, "blocked": false},
+      "generation": {"min_suggestions": 1, "no_invented_people": true}
+    }
+  ]
+}

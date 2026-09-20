@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 163 tests
+.venv\Scripts\python.exe -m pytest      # 179 tests
 ```
 
 ```bash
@@ -168,18 +168,21 @@ backend/
       prompts.py         the one place the model's rules are written
       feedback_signal.py what his used/edited/rejected verdicts imply
       example_library.py picks curated examples, and refuses to more often
+      evaluation.py      turns the README's promises into checkable properties
       generator.py       the gates: nothing is generated past a block
     providers/           swappable model backends (anthropic, offline mock)
     storage/base.py      the storage contract both backends implement
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 163 tests, realistic conversations, fictional names
+  tests/                 179 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
   src/lib/auth.ts        Supabase Auth only -- the browser never queries the DB
 supabase/schema.sql      tables, owner-only RLS policies, signup trigger
+evals/cases.json         fixed conversations and what each one must do
+scripts/run_evals.py     runs them; offline by default, --generate for real
 ```
 
 **Analysis runs on your own backend and the conversation is never stored.** Only
@@ -224,6 +227,30 @@ testable and why it works with no API key:
 
 ---
 
+## Checking it still behaves
+
+Unit tests prove a function does what it says. The eval set proves the product
+still keeps its promises across whole conversations:
+
+```bash
+python scripts/run_evals.py              # offline, no key, must always pass
+python scripts/run_evals.py --generate   # also checks real model output
+```
+
+`evals/cases.json` holds fixed, fictional conversations and what each one must
+produce — a boundary must block, an unknown name must be asked about, and an
+ordinary chat must still get a reply, which matters just as much: a product
+that refuses everything is useless. Each case says why it exists.
+
+The offline half needs no API key and exits non-zero on a regression, so it can
+gate a commit. `--generate` additionally asks the configured provider for real
+replies and checks them against the claims on this page: no invented people, no
+Sheng past his measured level, no stacked emojis, no reciting the example
+library, and options that differ by more than wording. That half costs money
+and is not deterministic, so a failure there is a reason to go and look rather
+than proof of a bug. Without a real provider configured it skips those checks
+rather than running them against templates.
+
 ## Privacy
 
 - Conversations are never stored. What is kept: your style profile, your
@@ -251,12 +278,12 @@ The added vocabulary in `lexicon.py` is general Nairobi Sheng, not your own —
 it is marked as such, and striking what rings false is the intended way to use
 it.
 
-**Phase 3 — human texture.** The example library is in: examples are stored,
+**Phase 3 — done.** The example library is in: examples are stored,
 matched to the situation and shown to the model as reference. It is a reference
 and not a script — nothing is offered past a boundary, an example carries the
 conditions he marked it wrong for, at most two are ever shown, and the prompt
 says outright that the lines are not to be reused. There is no UI for it yet:
-examples go in through `POST /api/examples`. Still to come: evaluation sets.
+examples go in through `POST /api/examples`. The eval set is in too (see below).
 
 **Phase 4 — Android.** A share-to-assistant flow first, because it is the only
 approach that is officially supported.

@@ -65,6 +65,7 @@ def build_user_prompt(
     avoid: list[str],
     action: str | None,
     goodnight: bool,
+    feedback_text: str = "",
 ) -> str:
     goal_label = CONVERSATION_GOALS.get(goal, goal)
 
@@ -88,6 +89,14 @@ def build_user_prompt(
         sections.append("## Questions still hanging\n" + unanswered)
 
     sections.append("## His texting style\n" + style_text)
+
+    if feedback_text:
+        sections.append(
+            "## How he has judged your past suggestions\n"
+            + feedback_text
+            + "\nThis is feedback on your own output, not on her. It outranks "
+            "your instincts about what sounds good."
+        )
 
     note = mirror_note(their_style)
     if note:

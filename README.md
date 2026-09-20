@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 91 tests
+.venv\Scripts\python.exe -m pytest      # 115 tests
 ```
 
 ```bash
@@ -94,7 +94,7 @@ Turning on **accounts** gives you sign-in and sync across devices:
 
    ```
    SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_ANON_KEY=eyJ...
+   SUPABASE_ANON_KEY=sb_publishable_...   # or a legacy eyJ... anon key
    ```
 
 5. Restart the backend. The app now asks you to sign in, and the frontend picks
@@ -166,13 +166,14 @@ backend/
       rhythm.py          engagement, flow state, Continue/Stop/Wait
       style_profile.py   learns how *you* text, from your messages only
       prompts.py         the one place the model's rules are written
+      feedback_signal.py what his used/edited/rejected verdicts imply
       generator.py       the gates: nothing is generated past a block
     providers/           swappable model backends (anthropic, offline mock)
     storage/base.py      the storage contract both backends implement
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 91 tests, realistic conversations, fictional names
+  tests/                 115 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
@@ -203,6 +204,13 @@ testable and why it works with no API key:
 - **Rhythm.** Engagement from message lengths, questions asked back, and
   one-word replies. No folk rules about waiting twenty minutes. If the paste has
   no timestamps, it says it cannot know the gaps rather than pretending.
+- **Learning from your verdicts.** Every suggestion you send, edit or throw out
+  is compared against the others: length, Sheng level, emojis, whether it ends
+  in a question. A difference only reaches the prompt when it is big enough to
+  survive a handful of samples, and anything you typed in the note field is
+  quoted to the model verbatim, because your words beat our summary of them.
+  Under four verdicts it says nothing at all — four rejections are as likely to
+  be four weak suggestions as a standing preference.
 - **Confidence.** Every reading carries a confidence level, and "what I do not
   know" is shown next to "what I can tell".
 
@@ -228,7 +236,8 @@ Wait → goodnight and next-morning, with contact memory, style learning and
 feedback.
 
 **Phase 2 — personalisation.** Supabase auth and RLS are **done** (see Accounts
-above). Still to come: feedback actually feeding generation, and better Sheng.
+above), and feedback now feeds generation: what you send, edit and throw out
+shapes the next suggestions. Still to come: better Sheng.
 
 **Phase 3 — human texture.** The curated example library, and evaluation sets
 built from real conversations. Screenshots do not retrain a model; they build a

@@ -29,6 +29,21 @@ def _env_bool(key: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+# Hosts that mean "this machine". A backend reachable only from here needs no
+# sign-in, which is why local mode has none.
+LOCAL_HOSTS: frozenset[str] = frozenset(
+    {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"}
+)
+
+
+def is_local_origin(origin: str) -> bool:
+    """Whether a CORS origin refers to this machine."""
+    from urllib.parse import urlparse
+
+    host = (urlparse(origin.strip()).hostname or origin.strip()).lower()
+    return host in LOCAL_HOSTS
+
+
 @dataclass(frozen=True)
 class Settings:
     provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "auto"))
@@ -71,11 +86,49 @@ class Settings:
         return bool(self.supabase_url and self.supabase_anon_key)
 
     @property
+    def public_origins(self) -> tuple[str, ...]:
+        """Configured origins that are not this machine."""
+        return tuple(o for o in self.cors_origins if not is_local_origin(o))
+
+    @property
+    def is_exposed_without_accounts(self) -> bool:
+        """True when the app would serve private data to anyone who can reach it.
+
+        Local mode has no sign-in because it has never needed one: the backend
+        listens on this machine and nobody else can ask it anything. Configuring
+        a CORS origin somewhere else is the moment that stops being true, and
+        every endpoint -- the contacts, everything remembered, the one that
+        deletes all of it -- is then open to whoever finds the URL.
+
+        Nothing here can tell what address uvicorn is bound to, but naming a
+        public origin is a deliberate act and a reliable signal of intent.
+        """
+        return bool(self.public_origins) and not self.supabase_enabled
+
+    @property
     def resolved_provider(self) -> str:
         """`auto` picks Claude when a key is present, otherwise the offline mock."""
         if self.provider != "auto":
             return self.provider
         return "anthropic" if self.anthropic_api_key else "mock"
+
+
+def exposure_error(settings: "Settings") -> str:
+    """Why the app refused to start, and what to do about it.
+
+    An error that does not say how to fix it gets worked around instead of
+    fixed, and the way this one would be worked around is by deleting the
+    check.
+    """
+    return (
+        "Refusing to start: CORS_ORIGINS names "
+        + ", ".join(settings.public_origins)
+        + ", but no Supabase project is configured. In local mode there is no "
+        "sign-in, so every endpoint -- your contacts, everything you have had "
+        "it remember, and DELETE /api/data -- would be open to anyone who can "
+        "reach this server. Set SUPABASE_URL and SUPABASE_ANON_KEY (see the "
+        "README), or keep CORS_ORIGINS on localhost."
+    )
 
 
 @lru_cache(maxsize=1)

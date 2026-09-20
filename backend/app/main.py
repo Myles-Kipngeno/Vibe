@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from . import config
 from .api import conversation, examples, profiles
 from .api.deps import get_provider
 from .config import get_settings
@@ -38,6 +39,16 @@ async def lifespan(_: FastAPI):
         log.info("Message content logging is OFF (LOG_MESSAGE_CONTENT=false).")
     yield
 
+
+# Refuse to start rather than serve private data to the internet.
+#
+# This is the one misconfiguration that cannot be warned about after the fact:
+# by the time anyone notices, the contacts and the remembered context have been
+# readable by whoever found the URL, and so has the endpoint that deletes them.
+# It is deliberately not overridable -- the fix is to turn on accounts, which
+# takes two environment variables, not to silence the check.
+if settings.is_exposed_without_accounts:
+    raise RuntimeError(config.exposure_error(settings))
 
 app = FastAPI(
     lifespan=lifespan,

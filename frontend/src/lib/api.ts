@@ -1,8 +1,10 @@
 /**
  * The only place that talks to the backend.
  *
- * Requests go to a relative /api path, which Vite proxies to the FastAPI server
- * in development. No API keys ever reach this bundle -- the backend holds them.
+ * In development, requests go to a relative /api path that Vite proxies to the
+ * FastAPI server. A deployed frontend has no such proxy and is usually not on
+ * the same host as the backend, so VITE_API_URL points at it. No API keys ever
+ * reach this bundle -- the backend holds them.
  *
  * When accounts are configured, every request carries the signed-in user's
  * Supabase access token. The backend passes that same token to Postgres, so Row
@@ -43,11 +45,19 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+/** Where the backend lives. Empty in development, where Vite proxies /api. */
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
+
+/** Absolute when VITE_API_URL is set, relative otherwise. */
+export function apiUrl(path: string): string {
+  return API_BASE ? API_BASE + path : path;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken();
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await fetch(apiUrl(path), {
       ...init,
       headers: {
         "Content-Type": "application/json",

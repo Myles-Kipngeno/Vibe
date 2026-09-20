@@ -45,7 +45,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 184 tests
+.venv\Scripts\python.exe -m pytest      # 201 tests
 ```
 
 ```bash
@@ -164,6 +164,7 @@ two test users stay in **Authentication → Users**; delete them there.
 
 ```
 backend/
+  Dockerfile             the backend as a long-running process, for deploying
   app/
     core/                what makes this product different -- all deterministic
       lexicon.py         Sheng/English word lists, verb morphology, alert phrases
@@ -182,7 +183,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 184 tests, realistic conversations, fictional names
+  tests/                 201 tests, realistic conversations, fictional names
 frontend/
   public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
@@ -278,6 +279,46 @@ only listens on `127.0.0.1`. The moment it listens anywhere else, every
 endpoint is open to whoever can reach it: your contacts, everything you have
 had it remember, and `DELETE /api/data`, which wipes the lot. Turn on Supabase
 accounts (see **Accounts** above) before the backend leaves your machine.
+
+## Putting it online
+
+The two halves go to different places, and the order matters.
+
+**The backend needs a host that keeps a process running** — Fly, Render,
+Railway, a VPS. `backend/Dockerfile` is there for exactly that. It is
+deliberately not a serverless function: the local JSON store writes to disk,
+and a serverless filesystem is per-invocation, so local mode would appear to
+work and lose every write.
+
+**Turn accounts on first.** This is not optional advice. In local mode there is
+no sign-in, because nothing outside this machine can ask the backend anything.
+The moment it is reachable from elsewhere, every endpoint is open to whoever
+finds the URL — your contacts, everything you have had it remember, and
+`DELETE /api/data`, which wipes all of it. The app enforces this: name a
+non-localhost `CORS_ORIGINS` without `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+set, and it refuses to start rather than serve.
+
+**The frontend goes to Vercel** (or any static host). `vercel.json` builds
+`frontend/` and serves `dist/`. Two environment variables:
+
+```
+VITE_API_URL=https://<your-backend-host>
+```
+
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are optional — the frontend
+reads them from `/api/health` once it can reach the backend. Without
+`VITE_API_URL` the built app requests `/api` from its own domain and reaches
+nothing, which is the first thing to check if a deployment loads but does not
+work.
+
+Then point the backend back at it:
+
+```
+CORS_ORIGINS=https://<your-frontend-domain>
+```
+
+Serving the frontend over HTTPS is also what the Android share target needs
+(see *On your phone*), so a deployment gets that for free.
 
 ## Checking it still behaves
 

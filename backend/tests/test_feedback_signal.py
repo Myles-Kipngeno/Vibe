@@ -170,6 +170,62 @@ def test_a_long_history_does_not_grow_the_prompt_without_limit():
     assert len(feedback_brief(signal)) < 2000
 
 
+# --- One suggestion, one verdict ----------------------------------------------
+
+
+def stamped(entry: dict, when: str) -> dict:
+    return {**entry, "created_at": when}
+
+
+def test_judging_the_same_suggestion_twice_counts_once():
+    """Copying a suggestion twice is one judgement, not two."""
+    once = fb("used", "Niaje, umeamkaje?")
+    signal = summarize([once, dict(once)])
+    assert signal.total == 1
+
+
+def test_his_later_word_on_a_suggestion_replaces_the_earlier_one():
+    """Reject it, then say why: the reason must survive and not double-count."""
+    first = stamped(fb("rejected", "Hey beautiful"), "2026-01-01T10:00:00")
+    second = stamped(
+        {**first, "note": "far too corny"}, "2026-01-01T10:00:30"
+    )
+    signal = summarize([first, second])
+    assert signal.total == 1
+    assert signal.rejected == 1
+    assert any("far too corny" in n for n in signal.notes)
+
+
+def test_a_changed_verdict_takes_the_latest():
+    early = stamped(fb("rejected", "Pole sana"), "2026-01-01T10:00:00")
+    later = stamped({**early, "verdict": "used"}, "2026-01-02T10:00:00")
+    signal = summarize([early, later])
+    assert (signal.used, signal.rejected) == (1, 0)
+
+
+def test_newest_first_storage_is_read_in_the_same_order_as_oldest_first():
+    """The two stores disagree on order; the reading must not.
+
+    The Supabase store returns `created_at.desc` and the local store appends.
+    Handed the same history both ways, the recent examples quoted back have to
+    be the same ones, or accounts mode silently quotes his oldest verdicts.
+    """
+    history = [
+        stamped(fb("rejected", f"rejected suggestion {i}"), f"2026-01-{i + 1:02d}T10:00:00")
+        for i in range(6)
+    ] + [
+        stamped(fb("used", f"kept suggestion {i}"), f"2026-01-{i + 10:02d}T10:00:00")
+        for i in range(6)
+    ]
+    oldest_first = summarize(history)
+    newest_first = summarize(list(reversed(history)))
+    assert oldest_first.rejected_examples == newest_first.rejected_examples
+    assert oldest_first.used_examples == newest_first.used_examples
+    # And "recent" must really mean recent.
+    assert "rejected suggestion 5" in " ".join(oldest_first.rejected_examples)
+    assert "rejected suggestion 0" not in " ".join(oldest_first.rejected_examples)
+
+
 # --- The wiring: feedback must actually reach the model ------------------------
 
 
@@ -255,3 +311,61 @@ def test_a_fresh_account_gets_no_feedback_section(client, monkeypatch):
     )
     assert captured
     assert "How he has judged your past suggestions" not in captured[-1]
+
+
+def test_the_reject_then_explain_sequence_the_ui_sends(client, monkeypatch):
+    """SuggestionCard posts twice: the bare rejection, then the reason.
+
+    The card records a rejection as soon as it is clicked so the verdict is
+    never lost, and posts again if he types why. That must end as one verdict
+    carrying his words -- not two rejections, and not a rejection with the note
+    dropped.
+    """
+    from app.providers.mock import MockProvider
+
+    captured: list[str] = []
+    original = MockProvider.generate
+
+    def spy(self, system, user, schema, context=None):
+        captured.append(user)
+        return original(self, system, user, schema, context)
+
+    monkeypatch.setattr(MockProvider, "generate", spy)
+
+    def judge(sid: str, text: str, verdict: str, note: str = "") -> None:
+        assert (
+            client.post(
+                "/api/conversation/feedback",
+                json={
+                    "suggestion_id": sid,
+                    "suggestion_text": text,
+                    "verdict": verdict,
+                    "note": note,
+                },
+            ).status_code
+            == 204
+        )
+
+    # The click, then the reason -- the same suggestion, twice.
+    judge("sug_aaa", "Hey beautiful, how was your day?", "rejected")
+    judge("sug_aaa", "Hey beautiful, how was your day?", "rejected", "too corny for me")
+    # Enough other verdicts to clear the reporting floor.
+    judge("sug_bbb", "Good morning gorgeous", "rejected")
+    judge("sug_ccc", "Niaje, umeamkaje?", "used")
+    judge("sug_ddd", "Poa sana", "used")
+
+    client.post(
+        "/api/conversation/suggest",
+        json={
+            "messages": [
+                {"speaker": "them", "text": "niaje, uko aje leo?"},
+                {"speaker": "me", "text": "poa sana, wewe je?"},
+            ],
+            "goal": "keep_flowing",
+        },
+    )
+
+    prompt = captured[-1]
+    assert "too corny for me" in prompt
+    # Four suggestions judged, not five: the reason replaced the bare rejection.
+    assert "4 judged" in prompt

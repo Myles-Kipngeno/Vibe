@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 115 tests
+.venv\Scripts\python.exe -m pytest      # 120 tests
 ```
 
 ```bash
@@ -173,7 +173,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 115 tests, realistic conversations, fictional names
+  tests/                 120 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
@@ -209,6 +209,8 @@ testable and why it works with no API key:
   in a question. A difference only reaches the prompt when it is big enough to
   survive a handful of samples, and anything you typed in the note field is
   quoted to the model verbatim, because your words beat our summary of them.
+  Rejecting a suggestion asks why, in one optional line. Judging the same
+  suggestion again replaces your earlier verdict rather than counting twice.
   Under four verdicts it says nothing at all — four rejections are as likely to
   be four weak suggestions as a standing preference.
 - **Confidence.** Every reading carries a confidence level, and "what I do not

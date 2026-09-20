@@ -126,14 +126,39 @@ def _compare(kept: list[str], rejected: list[str]) -> list[str]:
     return out
 
 
+def _latest_per_suggestion(feedback: list[dict]) -> list[dict]:
+    """Oldest-first, one entry per suggestion, keeping his latest word on it."""
+    ordered = sorted(
+        feedback, key=lambda e: str(e.get("created_at") or ""), reverse=False
+    )
+    latest: dict[str, dict] = {}
+    for entry in ordered:
+        key = str(entry.get("suggestion_id") or "") or f"_anon{len(latest)}"
+        latest[key] = entry
+    return list(latest.values())
+
+
 def summarize(feedback: list[dict]) -> FeedbackSignal:
     """Condense the raw feedback log into something a prompt can use.
 
-    Entries are assumed oldest-first, as both stores append them. Recent
-    verdicts are the ones quoted back, because his taste is allowed to change.
+    Two things are normalised first, because the stores do not agree and the
+    UI can send the same verdict twice.
+
+    Order: the local store appends oldest-first, the Supabase store returns
+    `created_at.desc`. Sorting on the timestamp makes "most recent" mean the
+    same thing on both, so quoting recent verdicts is not backwards on one.
+
+    Repeats: a verdict is a judgement on a suggestion, not a click. Copying a
+    suggestion twice, or rejecting it and then saying why, must not count
+    twice or the pattern comparison ends up reading emphasis into a
+    double-tap. The last judgement of each suggestion is the one that stands --
+    storage stays a faithful log, and this is the only place that decides what
+    the log means.
     """
     if not feedback:
         return FeedbackSignal()
+
+    feedback = _latest_per_suggestion(feedback)
 
     used = edited = rejected = 0
     kept_texts: list[str] = []

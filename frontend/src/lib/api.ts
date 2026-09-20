@@ -15,6 +15,8 @@ import { getAccessToken } from "./auth";
 import type {
   AnalyzeResponse,
   ContactProfile,
+  ConversationExample,
+  ConversationExampleCreate,
   Health,
   Memory,
   Message,
@@ -117,6 +119,11 @@ export const api = {
     verdict: "used" | "edited" | "rejected";
     note?: string;
   }) => post<void>("/api/conversation/feedback", payload),
+
+  examples: () => request<ConversationExample[]>("/api/examples"),
+  createExample: (payload: ConversationExampleCreate) =>
+    post<ConversationExample>("/api/examples", payload),
+  deleteExample: (id: string) => request<void>(`/api/examples/${id}`, { method: "DELETE" }),
 
   getStyle: () => request<StyleProfile>("/api/style"),
   getStyleBrief: () => request<{ brief: string }>("/api/style/brief"),

@@ -137,3 +137,27 @@ export interface Health {
   /** The public anon key. RLS, not secrecy, is what protects the data. */
   supabase_anon_key?: string | null;
 }
+
+/** One curated reference card from a conversation that went well.
+ *
+ * Deliberately not a transcript: it holds what *he* wrote and a description of
+ * what came back, never her messages. `not_suitable_when` is what keeps the
+ * library a reference rather than a book of lines.
+ */
+export type LanguageMix = "english" | "light_sheng" | "mixed" | "heavy_sheng";
+
+export interface ConversationExample {
+  id: string;
+  situation: string;
+  context: string;
+  opening_line: string;
+  language_mix: LanguageMix;
+  tone: string;
+  reaction: string;
+  what_worked: string;
+  what_did_not: string;
+  not_suitable_when: string;
+  created_at: string;
+}
+
+export type ConversationExampleCreate = Omit<ConversationExample, "id" | "created_at">;

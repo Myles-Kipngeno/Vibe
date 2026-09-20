@@ -12,6 +12,7 @@ import {
 import type { ContactProfile, Health, StyleProfile } from "./lib/types";
 import Contacts from "./pages/Contacts";
 import Dashboard from "./pages/Dashboard";
+import Library from "./pages/Library";
 import MyStyle from "./pages/MyStyle";
 import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
@@ -21,6 +22,7 @@ const TABS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "workspace", label: "Workspace" },
   { id: "contacts", label: "Contacts" },
+  { id: "library", label: "Library" },
   { id: "style", label: "My Style" },
   { id: "settings", label: "Settings" },
 ] as const;
@@ -219,6 +221,7 @@ export default function App() {
             onOpenWorkspace={openWorkspace}
           />
         )}
+        {tab === "library" && <Library />}
         {tab === "style" && <MyStyle style={style} onChanged={loadData} />}
         {tab === "settings" && <Settings health={health} onChanged={loadData} />}
       </main>

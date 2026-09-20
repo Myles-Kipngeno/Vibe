@@ -177,7 +177,7 @@ backend/
     api/                 FastAPI routes
   tests/                 179 tests, realistic conversations, fictional names
 frontend/
-  src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
+  src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
   src/lib/auth.ts        Supabase Auth only -- the browser never queries the DB
 supabase/schema.sql      tables, owner-only RLS policies, signup trigger
@@ -282,8 +282,9 @@ it.
 matched to the situation and shown to the model as reference. It is a reference
 and not a script — nothing is offered past a boundary, an example carries the
 conditions he marked it wrong for, at most two are ever shown, and the prompt
-says outright that the lines are not to be reused. There is no UI for it yet:
-examples go in through `POST /api/examples`. The eval set is in too (see below).
+says outright that the lines are not to be reused. The Library tab is where you
+add them, and the form has nowhere to put her messages on purpose. The eval set
+is in too (see below).
 
 **Phase 4 — Android.** A share-to-assistant flow first, because it is the only
 approach that is officially supported.

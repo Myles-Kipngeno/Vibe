@@ -298,8 +298,9 @@ finds the URL — your contacts, everything you have had it remember, and
 non-localhost `CORS_ORIGINS` without `SUPABASE_URL` and `SUPABASE_ANON_KEY`
 set, and it refuses to start rather than serve.
 
-**The frontend goes to Vercel** (or any static host). `vercel.json` builds
-`frontend/` and serves `dist/`. Two environment variables:
+**The frontend goes to Vercel** (or any static host). Select the `frontend`
+directory on Vercel; `frontend/vercel.json` handles SPA routing and service worker
+headers. Two environment variables:
 
 ```
 VITE_API_URL=https://<your-backend-host>

@@ -184,7 +184,7 @@ frontend/
 supabase/schema.sql      tables, owner-only RLS policies, signup trigger
 evals/cases.json         fixed conversations and what each one must do
 scripts/run_evals.py     runs them; offline by default, --generate for real
-scripts/verify_share_target.mjs  drives the Android share handoff without a browser
+scripts/verify_sharing.mjs  drives both share directions without a browser
 ```
 
 **Analysis runs on your own backend and the conversation is never stored.** Only
@@ -237,12 +237,21 @@ in the paste box. Nothing is analysed until you press the button — the labels
 may be wrong, and reading a conversation you have not asked about is the one
 thing this app should never do by itself.
 
-The share is a **POST**, which is why there is a service worker. A GET share
+Going the other way, a reply you pick has a **Send** button that hands it to the
+share sheet: choose WhatsApp, pick the chat, and it arrives in the box ready to
+send. It is still you sending it — nothing can put a message in a chat on your
+behalf, on any platform — but it is one tap rather than a copy, a task switch
+and a paste. Where there is no share sheet the button says **Copy** and does
+what it always did. Backing out of the share sheet records nothing: changing
+your mind is not a reply you sent, and logging it as one would quietly poison
+what the app learns from your verdicts.
+
+The incoming share is a **POST**, which is why there is a service worker. A GET share
 target would need no worker at all, but the conversation would travel as a URL
 query string and land in browser history and in any log on the way. Instead the
 worker parks it in a cache entry the page reads exactly once and deletes.
 
-`node scripts/verify_share_target.mjs` exercises that handoff outside a browser
+`node scripts/verify_sharing.mjs` exercises that handoff outside a browser
 — the worker is plain JavaScript, so it runs against stubs. It proves the share
 is received, the conversation reaches the page unchanged, and it never appears
 in a URL. It cannot prove Chrome offers "Add to home screen" or lists Vibe in
@@ -326,8 +335,23 @@ is in too (see below).
 phone* above). Running it on a real device needs HTTPS and, honestly, accounts
 turned on first.
 
-**Phase 5 — integrations.** Honestly: WhatsApp and Instagram have no API for
-personal DMs. Reading them in the background needs notification-listener access,
-which Google restricts heavily, and auto-sending is not supported by either
-platform. A custom keyboard is possible and would need its own security review.
+**Phase 5 — integrations.** Done, in the only form that exists. The share sheet
+carries a conversation in and a reply back out; see *On your phone*. Everything
+else people mean by "integration" here is not a feature that has not been built
+yet, it is a thing the platforms do not offer:
+
+- **No API for personal DMs.** WhatsApp's Business API covers business accounts
+  messaging customers, not your own chats. Instagram's messaging API is for
+  professional accounts. Neither reaches a personal conversation.
+- **Auto-sending is not supported by either platform**, so nothing can put a
+  message in a chat except you. That is why the reply goes to the share sheet.
+- **Reading chats in the background** needs Android's notification-listener
+  access, which Google restricts to apps whose core function requires it, and
+  which would mean this app watching every notification on the phone. That is a
+  worse trade than a share sheet, not a better one.
+- **A custom keyboard is technically possible** and stays possible. It is also
+  an input method with sight of everything typed on the device, including
+  passwords, in every app. It would need its own security review and a much
+  stronger reason than saving a tap.
+
 Anything claiming otherwise is claiming something that does not exist.

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { api } from "../lib/api";
+import { canShareReply, sendReply } from "../lib/share";
 import type { Suggestion } from "../lib/types";
 import { Button, Pill } from "./ui";
 
@@ -19,6 +20,8 @@ export default function SuggestionCard({ suggestion }: { suggestion: Suggestion 
   const [reason, setReason] = useState("");
 
   const edited = text !== suggestion.text;
+  // Decided once on mount: the share sheet does not appear or vanish mid-session.
+  const [canShare] = useState(canShareReply);
 
   function flash(message: string) {
     setStatus(message);
@@ -43,13 +46,23 @@ export default function SuggestionCard({ suggestion }: { suggestion: Suggestion 
     }
   }
 
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      void send(edited ? "edited" : "used", "Copied.");
-    } catch {
-      flash("Copy failed -- select the text and copy it manually.");
+  /** Hands the reply to the share sheet, or the clipboard where there is none.
+   *
+   * Either way he chose to send it, so it counts as used. Backing out of the
+   * share sheet does not: he changed his mind, and recording that as a reply
+   * he sent would quietly poison what the app learns from his verdicts.
+   */
+  async function sendOnward() {
+    const outcome = await sendReply(text);
+    if (outcome === "cancelled") return;
+    if (outcome === "failed") {
+      flash("Could not send that -- select the text and copy it manually.");
+      return;
     }
+    void send(
+      edited ? "edited" : "used",
+      outcome === "shared" ? "Sent." : "Copied.",
+    );
   }
 
   function reject() {
@@ -92,8 +105,8 @@ export default function SuggestionCard({ suggestion }: { suggestion: Suggestion 
       <p className="mt-2 text-[11px] leading-relaxed text-muted">{suggestion.rationale}</p>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <Button size="sm" variant="primary" onClick={copy}>
-          Copy
+        <Button size="sm" variant="primary" onClick={sendOnward}>
+          {canShare ? "Send" : "Copy"}
         </Button>
         <Button size="sm" onClick={() => setEditing(true)}>
           Edit

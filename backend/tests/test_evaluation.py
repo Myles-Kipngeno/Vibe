@@ -71,6 +71,70 @@ def test_a_reply_in_his_own_register_passes():
     ).passed
 
 
+def test_it_catches_a_sheng_texter_answered_in_careful_english():
+    """The half that went unchecked.
+
+    At a ratio of 0.8 the ceiling clamped to 1.0, so nothing could fail the
+    check -- a man who writes mostly Sheng could be answered in flat English
+    and the eval would call it a pass.
+    """
+    result = evaluation.check_sheng_budget(
+        [sug("That sounds like a difficult week. I hope tomorrow is better.")],
+        his_ratio=0.8,
+    )
+    assert not result.passed
+    assert "too plain" in result.detail
+
+
+def test_a_sheng_texter_answered_in_sheng_passes():
+    assert evaluation.check_sheng_budget(
+        [sug("Pole sana, kazi noma. Umefanya enough leo, pumzika kidogo.")],
+        his_ratio=0.8,
+    ).passed
+
+
+def test_a_plain_english_texter_is_never_asked_for_sheng():
+    """The floor must not invert the budget.
+
+    His band says do not introduce Sheng at all. A minimum here would fail the
+    one behaviour the budget exists to produce, which is why the floor applies
+    only above the mixed band.
+    """
+    plain = [sug("That sounds rough. Hope today treats you better.")]
+    assert evaluation.check_sheng_budget(plain, his_ratio=0.0).passed
+    assert evaluation.check_sheng_budget(plain, his_ratio=0.2).passed
+    assert evaluation.check_sheng_budget(plain, his_ratio=0.35).passed
+
+
+def test_the_floor_cannot_reach_the_plain_and_light_bands():
+    """The rule the tolerance is carrying, pinned at the boundary.
+
+    A reply with no Sheng sits exactly his_ratio below him, so the tolerance
+    is what decides who can be asked for Sheng at all. If it is ever lowered,
+    this fails -- which is the point, because lowering it would start
+    demanding slang from men who do not write any.
+    """
+    none_at_all = [sug("That sounds rough. Hope today treats you better.")]
+    for ratio in (0.0, 0.1, 0.2, 0.3, evaluation.SHENG_UNDERSHOOT):
+        assert evaluation.check_sheng_budget(none_at_all, his_ratio=ratio).passed, ratio
+    # Just above it, a man who does mix is owed something that sounds like him.
+    assert not evaluation.check_sheng_budget(
+        none_at_all, his_ratio=evaluation.SHENG_UNDERSHOOT + 0.2
+    ).passed
+
+
+def test_the_direction_of_the_failure_is_named():
+    """"his 0.80 vs written 0.10" alone does not say which way is wrong."""
+    too_much = evaluation.check_sheng_budget(
+        [sug("Manze niaje msee, uko aje leo? tutaonana kesho bana")], his_ratio=0.0
+    )
+    too_little = evaluation.check_sheng_budget(
+        [sug("I hope your week gets easier than this one was.")], his_ratio=0.9
+    )
+    assert "too much" in too_much.detail
+    assert "too plain" in too_little.detail
+
+
 def test_nothing_generated_is_not_a_budget_failure():
     assert evaluation.check_sheng_budget([], his_ratio=0.5).passed
 

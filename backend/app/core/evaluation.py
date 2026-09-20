@@ -26,6 +26,22 @@ from .textstats import emojis, sheng_ratio, words
 # a register he does not use, not to police a single extra word.
 SHENG_OVERSHOOT = 0.3
 
+# How far below his own level a reply may sit before it stops sounding like
+# him. Answering a man who writes mostly Sheng in careful English is as wrong
+# as the reverse, and it used to pass silently: the check only ever looked
+# upwards, so at a ratio of 0.8 the ceiling clamped to 1.0 and nothing could
+# fail it.
+#
+# This number also carries a rule, which is why it is not smaller. A reply
+# with no Sheng at all sits exactly `his_ratio` below him, so anyone under
+# 0.35 -- the plain and light bands, whose budgets say "at most one every few
+# messages" and "do not introduce it" -- cannot fail this no matter what is
+# written. There is deliberately no floor down there: a minimum would demand
+# slang from a man who does not use it, which is the precise failure the
+# budget exists to prevent. A separate band gate stood here to say so and
+# could never fire, because this tolerance had already decided it.
+SHENG_UNDERSHOOT = 0.35
+
 # More than this many emojis in one message is stacking, which the system
 # prompt forbids outright.
 MAX_EMOJIS = 2
@@ -83,17 +99,32 @@ def check_no_invented_people(
 def check_sheng_budget(
     suggestions: list[Suggestion], his_ratio: float
 ) -> CheckResult:
-    """A reply far more Sheng than he writes is somebody else's voice."""
+    """A reply that sounds like somebody else, in either direction.
+
+    Too much Sheng reads as another person holding his phone. Too little reads
+    as a stranger writing for him, and that half went unchecked for a while --
+    worth naming, because a check that can only fail one way looks like it is
+    guarding something while the other direction walks past.
+
+    The floor applies only to someone who actually writes Sheng. For everyone
+    else there is no minimum, ever: the budget's whole job at the plain end is
+    to stop slang being introduced, and a check demanding it would invert that.
+    """
     if not suggestions:
         return CheckResult("sheng budget respected", True, "nothing generated")
 
     written = sheng_ratio([s.text for s in suggestions])
-    overshoot = written - his_ratio
-    return CheckResult(
-        "sheng budget respected",
-        overshoot <= SHENG_OVERSHOOT,
-        f"his {his_ratio:.2f} vs written {written:.2f}",
-    )
+    detail = f"his {his_ratio:.2f} vs written {written:.2f}"
+
+    if written - his_ratio > SHENG_OVERSHOOT:
+        return CheckResult("sheng budget respected", False, detail + " -- too much")
+
+    if his_ratio - written > SHENG_UNDERSHOOT:
+        return CheckResult(
+            "sheng budget respected", False, detail + " -- too plain for him"
+        )
+
+    return CheckResult("sheng budget respected", True, detail)
 
 
 def check_no_emoji_stacking(suggestions: list[Suggestion]) -> CheckResult:

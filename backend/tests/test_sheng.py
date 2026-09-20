@@ -148,3 +148,63 @@ def test_the_prompt_describes_each_band_differently():
     assert "almost no Sheng" in plain
     assert "heavy Sheng" in heavy
     assert plain != heavy
+
+
+# --- What the model is actually instructed to do -------------------------------
+
+
+def test_each_band_gets_a_countable_budget_not_an_adjective():
+    """"Natural Sheng + English mix" is a description, not an instruction.
+
+    A model reading it reaches for every slang word it knows. Each band has to
+    carry a rule it can actually obey.
+    """
+    from app.core.style_profile import sheng_budget
+
+    budgets = [sheng_budget(r) for r in (0.05, 0.2, 0.5, 0.85)]
+    assert len(set(budgets)) == 4, "bands must not share a budget"
+    assert all(b.strip() for b in budgets)
+
+
+def test_a_plain_english_texter_is_told_not_to_introduce_sheng():
+    from app.core.style_profile import sheng_budget
+
+    assert "Do not introduce it" in sheng_budget(0.0)
+
+
+def test_a_light_mixer_is_given_a_ceiling_rather_than_encouragement():
+    from app.core.style_profile import sheng_budget
+
+    assert "At most" in sheng_budget(0.2)
+    assert "too many" in sheng_budget(0.5)
+
+
+def test_the_budget_actually_reaches_the_brief():
+    """Testing sheng_budget() alone would pass with it wired to nothing."""
+    from app.core.style_profile import blank_profile, sheng_budget
+
+    for ratio in (0.0, 0.2, 0.5, 0.85):
+        profile = blank_profile().model_copy(update={"sheng_ratio": ratio})
+        assert sheng_budget(ratio) in style_brief(profile), ratio
+
+
+def test_the_brief_warns_against_slang_he_has_not_used():
+    from app.core.style_profile import blank_profile
+
+    mixed = blank_profile().model_copy(update={"sheng_ratio": 0.5})
+    assert "seen him use" in style_brief(mixed)
+
+
+def test_a_plain_english_texter_gets_no_slang_encouragement_at_all():
+    """The one band where the extra line would be actively harmful."""
+    from app.core.style_profile import blank_profile
+
+    plain = blank_profile().model_copy(update={"sheng_ratio": 0.0})
+    assert "Spend the budget" not in style_brief(plain)
+
+
+def test_the_system_prompt_treats_the_budget_as_a_ceiling():
+    from app.core.prompts import SYSTEM_PROMPT
+
+    assert "limit, not a target" in SYSTEM_PROMPT
+    assert "worse than no Sheng at all" in SYSTEM_PROMPT

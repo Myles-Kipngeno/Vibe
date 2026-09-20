@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 130 tests
+.venv\Scripts\python.exe -m pytest      # 137 tests
 ```
 
 ```bash
@@ -173,7 +173,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 130 tests, realistic conversations, fictional names
+  tests/                 137 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
@@ -237,9 +237,13 @@ testable and why it works with no API key:
 Wait → goodnight and next-morning, with contact memory, style learning and
 feedback.
 
-**Phase 2 — personalisation.** Supabase auth and RLS are **done** (see Accounts
-above), and feedback now feeds generation: what you send, edit and throw out
-shapes the next suggestions. Still to come: better Sheng.
+**Phase 2 — personalisation.** Done: Supabase auth and RLS (see Accounts
+above); feedback feeding generation, so what you send, edit and throw out
+shapes the next suggestions; and Sheng measured by verb shape rather than by a
+word list, with a countable Sheng budget in the prompt instead of an adjective.
+The added vocabulary in `lexicon.py` is general Nairobi Sheng, not your own —
+it is marked as such, and striking what rings false is the intended way to use
+it.
 
 **Phase 3 — human texture.** The curated example library, and evaluation sets
 built from real conversations. Screenshots do not retrain a model; they build a

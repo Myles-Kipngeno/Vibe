@@ -77,6 +77,36 @@ def learn_from_messages(
     return updated
 
 
+def sheng_budget(ratio: float) -> str:
+    """How much Sheng the model may spend, as a rule rather than an adjective.
+
+    "Natural Sheng + English mix" is not an instruction -- a model reading it
+    reaches for every slang word it knows, which is the failure this product
+    can least afford: slang he would not use, in a message sent under his name.
+    A countable budget is something it can actually obey.
+    """
+    if ratio >= 0.7:
+        return (
+            "Sheng is his default register. Write Sheng sentences with English "
+            "dropped in where it falls naturally, not English sentences with "
+            "slang sprinkled on."
+        )
+    if ratio >= 0.35:
+        return (
+            "About one Sheng word or phrase a message, carrying otherwise "
+            "English sentences. Two is already too many."
+        )
+    if ratio >= 0.12:
+        return (
+            "English is his base. At most one Sheng word every few messages, "
+            "and only where it is doing real work."
+        )
+    return (
+        "He does not write Sheng. Do not introduce it, however Kenyan the "
+        "conversation sounds."
+    )
+
+
 def style_brief(profile: StyleProfile) -> str:
     """A compact, human-readable description handed to the language model."""
     if profile.sheng_ratio >= 0.7:
@@ -103,6 +133,7 @@ def style_brief(profile: StyleProfile) -> str:
 
     lines = [
         f"- Language: {language}",
+        f"- Sheng budget: {sheng_budget(profile.sheng_ratio)}",
         f"- Message length: around {profile.avg_message_length} words",
         f"- Emojis: {emoji}",
         f"- Humour: {profile.humor_style}",
@@ -113,6 +144,12 @@ def style_brief(profile: StyleProfile) -> str:
         lines.append(
             "- Expressions he actually uses: "
             + ", ".join(profile.common_expressions[:8])
+        )
+    if profile.sheng_ratio >= 0.12:
+        lines.append(
+            "- Spend the budget on Sheng you have seen him use, here or in the "
+            "conversation. Reaching for slang he has not used is how this "
+            "starts sounding like an impression of him."
         )
     if profile.example_messages:
         samples = "; ".join(f'"{m}"' for m in profile.example_messages[-4:])

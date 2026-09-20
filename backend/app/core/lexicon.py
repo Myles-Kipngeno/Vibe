@@ -43,6 +43,19 @@ SHENG_MARKERS: frozenset[str] = frozenset(
         "kabisa", "buree", "tena", "basi", "haya", "sindio", "aje",
         # laughter
         "nimekufa", "wueh", "wueeh",
+        # --- Added without review against his own texting. --------------------
+        # Everything below this line is general Nairobi Sheng, not observed
+        # usage, so it is the first place to look when the output sounds like
+        # someone doing an impression. Strike anything that rings false --
+        # deleting a word here only makes the detector miss it, which is the
+        # cheaper mistake.
+        "msupa", "supuu", "mresh", "mtoi", "mdosi", "sonko", "gathee",
+        "mbuyu", "mzae", "fala", "ocha", "jamaa",
+        "matatu", "nganya", "manyanga", "mathree", "boda", "mzigo",
+        "kakitu", "soo", "thao", "kindu", "mulla",
+        "imebamba", "wazi", "rada", "sare", "mbaya", "tingiza", "chomoka",
+        "kanyaga", "kudai", "kuchapa", "kunyita", "kuvaa",
+        "maze", "ebu", "sindiyo", "mahali", "githo",
     }
 )
 

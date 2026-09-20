@@ -22,6 +22,8 @@ from app.schemas import Message  # noqa: E402
 @pytest.fixture()
 def store(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_ANON_KEY", raising=False)
     deps.reset_caches()
     reset_provider_cache()
     yield deps.get_store()
@@ -33,6 +35,8 @@ def store(tmp_path, monkeypatch):
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("AI_PROVIDER", "mock")
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_ANON_KEY", raising=False)
     deps.reset_caches()
     reset_provider_cache()
 

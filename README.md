@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 179 tests
+.venv\Scripts\python.exe -m pytest      # 184 tests
 ```
 
 ```bash
@@ -175,7 +175,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 179 tests, realistic conversations, fictional names
+  tests/                 184 tests, realistic conversations, fictional names
 frontend/
   public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
@@ -289,9 +289,10 @@ that refuses everything is useless. Each case says why it exists.
 
 The offline half needs no API key and exits non-zero on a regression, so it can
 gate a commit. `--generate` additionally asks the configured provider for real
-replies and checks them against the claims on this page: no invented people, no
-Sheng past his measured level, no stacked emojis, no reciting the example
-library, and options that differ by more than wording. That half costs money
+replies and checks them against the claims on this page: no invented people,
+Sheng at roughly your own level and not far either side of it, no stacked
+emojis, no reciting the example library, and options that differ by more than
+wording. That half costs money
 and is not deterministic, so a failure there is a reason to go and look rather
 than proof of a bug. Without a real provider configured it skips those checks
 rather than running them against templates.

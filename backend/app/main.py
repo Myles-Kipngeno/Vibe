@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .api import conversation, profiles
+from .api import conversation, examples, profiles
 from .api.deps import get_provider
 from .config import get_settings
 from .schemas import HealthResponse
@@ -65,6 +65,7 @@ async def _store_error(_: Request, exc: StoreError) -> JSONResponse:
 
 
 app.include_router(conversation.router)
+app.include_router(examples.router)
 app.include_router(profiles.style_router)
 app.include_router(profiles.contacts_router)
 app.include_router(profiles.data_router)

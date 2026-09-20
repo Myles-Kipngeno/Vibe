@@ -113,6 +113,7 @@ def suggest(
             action=payload.action,
             contact_name=(contact.nickname or contact.name) if contact else None,
             feedback=store.list_feedback(),
+            examples=store.list_examples(),
         )
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

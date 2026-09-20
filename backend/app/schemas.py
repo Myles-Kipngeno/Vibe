@@ -228,6 +228,48 @@ class SuggestResponse(BaseModel):
     is_mock: bool
 
 
+# --- The example library (Phase 3) --------------------------------------------
+
+
+class ConversationExample(BaseModel):
+    """One curated reference card: what the situation was and what he wrote.
+
+    Deliberately not a transcript. An example records *his* line and a
+    description of what came back -- never her messages -- because the library
+    is his to keep and her words are not his to store. `reaction` is a
+    description for the same reason: "replied quickly and asked something
+    back", not a quote.
+
+    `not_suitable_when` is the field that keeps this from becoming a
+    pickup-line book: an example that worked once carries the conditions under
+    which it should not be reached for again.
+    """
+
+    id: str
+    situation: str
+    context: str = ""
+    opening_line: str = ""
+    language_mix: Literal["english", "light_sheng", "mixed", "heavy_sheng"] = "mixed"
+    tone: str = ""
+    reaction: str = ""
+    what_worked: str = ""
+    what_did_not: str = ""
+    not_suitable_when: str = ""
+    created_at: datetime
+
+
+class ConversationExampleCreate(BaseModel):
+    situation: str
+    context: str = ""
+    opening_line: str = ""
+    language_mix: Literal["english", "light_sheng", "mixed", "heavy_sheng"] = "mixed"
+    tone: str = ""
+    reaction: str = ""
+    what_worked: str = ""
+    what_did_not: str = ""
+    not_suitable_when: str = ""
+
+
 class FeedbackCreate(BaseModel):
     suggestion_id: str
     suggestion_text: str

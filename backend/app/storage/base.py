@@ -10,7 +10,15 @@ from __future__ import annotations
 
 import abc
 
-from ..schemas import ContactProfile, FeedbackCreate, Memory, MemoryCreate, StyleProfile
+from ..schemas import (
+    ContactProfile,
+    ConversationExample,
+    ConversationExampleCreate,
+    FeedbackCreate,
+    Memory,
+    MemoryCreate,
+    StyleProfile,
+)
 
 
 class StoreError(RuntimeError):
@@ -95,6 +103,19 @@ class BaseStore(abc.ABC):
 
     @abc.abstractmethod
     def list_feedback(self) -> list[dict]: ...
+
+    # --- the example library -----------------------------------------------
+
+    @abc.abstractmethod
+    def add_example(
+        self, payload: ConversationExampleCreate
+    ) -> ConversationExample: ...
+
+    @abc.abstractmethod
+    def list_examples(self) -> list[ConversationExample]: ...
+
+    @abc.abstractmethod
+    def delete_example(self, example_id: str) -> bool: ...
 
     # --- privacy -----------------------------------------------------------
 

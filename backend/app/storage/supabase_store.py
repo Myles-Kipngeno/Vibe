@@ -32,6 +32,8 @@ import httpx
 
 from ..core.style_profile import blank_profile
 from ..schemas import (
+    ConversationExample,
+    ConversationExampleCreate,
     ContactProfile,
     FeedbackCreate,
     Memory,
@@ -85,6 +87,19 @@ def _iso(value: Any) -> datetime:
     if isinstance(value, str):
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     return _now()
+
+
+_EXAMPLE_FIELDS: tuple[str, ...] = (
+    "situation",
+    "context",
+    "opening_line",
+    "language_mix",
+    "tone",
+    "reaction",
+    "what_worked",
+    "what_did_not",
+    "not_suitable_when",
+)
 
 
 class SupabaseStore(BaseStore):
@@ -356,6 +371,48 @@ class SupabaseStore(BaseStore):
         return self._rows(
             "suggestion_feedback", {"select": "*", "order": "created_at.desc"}
         )
+
+    # --- the example library -----------------------------------------------
+
+    @staticmethod
+    def _to_example(row: dict) -> ConversationExample:
+        return ConversationExample(
+            id=str(row["id"]),
+            created_at=row["created_at"],
+            **{f: (row.get(f) or "") for f in _EXAMPLE_FIELDS if f != "language_mix"},
+            language_mix=row.get("language_mix") or "mixed",
+        )
+
+    def add_example(self, payload: ConversationExampleCreate) -> ConversationExample:
+        """`user_id` is not sent: the column defaults to auth.uid().
+
+        The owner is decided by Postgres from the verified token, which is why
+        a client cannot plant a row belonging to somebody else.
+        """
+        rows = self._request(
+            "POST",
+            "conversation_examples",
+            json_body=payload.model_dump(),
+            prefer="return=representation",
+        )
+        if not rows:
+            raise StoreError("Supabase did not return the saved example.", 502)
+        return self._to_example(rows[0])
+
+    def list_examples(self) -> list[ConversationExample]:
+        rows = self._rows(
+            "conversation_examples", {"select": "*", "order": "created_at.desc"}
+        )
+        return [self._to_example(r) for r in rows]
+
+    def delete_example(self, example_id: str) -> bool:
+        rows = self._request(
+            "DELETE",
+            "conversation_examples",
+            params={"id": f"eq.{example_id}", **self._owner_filter()},
+            prefer="return=representation",
+        )
+        return bool(rows)
 
     # --- privacy -----------------------------------------------------------
 

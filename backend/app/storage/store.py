@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ..schemas import (
+    ConversationExample,
+    ConversationExampleCreate,
     ContactProfile,
     FeedbackCreate,
     Memory,
@@ -47,7 +49,7 @@ class LocalStore(BaseStore):
 
     def _read(self) -> dict:
         if not self._path.exists():
-            return {"style_profile": None, "contacts": {}, "feedback": []}
+            return {"style_profile": None, "contacts": {}, "feedback": [], "examples": []}
         try:
             return json.loads(self._path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
@@ -58,7 +60,7 @@ class LocalStore(BaseStore):
                 self._path.replace(backup)
             except OSError:
                 pass
-            return {"style_profile": None, "contacts": {}, "feedback": []}
+            return {"style_profile": None, "contacts": {}, "feedback": [], "examples": []}
 
     def _write(self) -> None:
         tmp = self._path.with_suffix(".tmp")
@@ -210,12 +212,46 @@ class LocalStore(BaseStore):
         with self._lock:
             return list(self._data.get("feedback", []))
 
+    # --- the example library -----------------------------------------------
+
+    def add_example(self, payload: ConversationExampleCreate) -> ConversationExample:
+        with self._lock:
+            example = ConversationExample(
+                id=_new_id("example"), created_at=_now(), **payload.model_dump()
+            )
+            self._data.setdefault("examples", []).append(
+                json.loads(example.model_dump_json())
+            )
+            self._write()
+            return example
+
+    def list_examples(self) -> list[ConversationExample]:
+        with self._lock:
+            return [
+                ConversationExample(**row) for row in self._data.get("examples", [])
+            ]
+
+    def delete_example(self, example_id: str) -> bool:
+        with self._lock:
+            rows = self._data.get("examples", [])
+            remaining = [r for r in rows if r.get("id") != example_id]
+            if len(remaining) == len(rows):
+                return False
+            self._data["examples"] = remaining
+            self._write()
+            return True
+
     # --- privacy -----------------------------------------------------------
 
     def wipe(self) -> None:
         """Delete everything this app has stored. Irreversible, by design."""
         with self._lock:
-            self._data = {"style_profile": None, "contacts": {}, "feedback": []}
+            self._data = {
+                "style_profile": None,
+                "contacts": {},
+                "feedback": [],
+                "examples": [],
+            }
             self._write()
 
 

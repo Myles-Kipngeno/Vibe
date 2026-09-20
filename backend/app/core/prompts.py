@@ -69,6 +69,7 @@ def build_user_prompt(
     action: str | None,
     goodnight: bool,
     feedback_text: str = "",
+    examples_text: str = "",
 ) -> str:
     goal_label = CONVERSATION_GOALS.get(goal, goal)
 
@@ -99,6 +100,16 @@ def build_user_prompt(
             + feedback_text
             + "\nThis is feedback on your own output, not on her. It outranks "
             "your instincts about what sounds good."
+        )
+
+    if examples_text:
+        sections.append(
+            "## Conversations of his that went well\n"
+            + examples_text
+            + "\nThese are here for register and approach only. Do not reuse a "
+            "line, and do not adapt one -- a line that worked on someone else is "
+            "not a line, it is a coincidence. She is a different person and this "
+            "is a different conversation."
         )
 
     note = mirror_note(their_style)

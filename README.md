@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 137 tests
+.venv\Scripts\python.exe -m pytest      # 163 tests
 ```
 
 ```bash
@@ -167,13 +167,14 @@ backend/
       style_profile.py   learns how *you* text, from your messages only
       prompts.py         the one place the model's rules are written
       feedback_signal.py what his used/edited/rejected verdicts imply
+      example_library.py picks curated examples, and refuses to more often
       generator.py       the gates: nothing is generated past a block
     providers/           swappable model backends (anthropic, offline mock)
     storage/base.py      the storage contract both backends implement
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 137 tests, realistic conversations, fictional names
+  tests/                 163 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
@@ -204,6 +205,11 @@ testable and why it works with no API key:
 - **Rhythm.** Engagement from message lengths, questions asked back, and
   one-word replies. No folk rules about waiting twenty minutes. If the paste has
   no timestamps, it says it cannot know the gaps rather than pretending.
+- **A library that refuses more than it offers.** Examples you save are matched
+  to the situation you are actually in, never shown past a boundary, and
+  dropped when you marked them wrong for this kind of moment. Two at most,
+  and the model is told plainly that they are there for register — a line
+  that worked on someone else is not a line, it is a coincidence.
 - **Learning from your verdicts.** Every suggestion you send, edit or throw out
   is compared against the others: length, Sheng level, emojis, whether it ends
   in a question. A difference only reaches the prompt when it is big enough to
@@ -245,9 +251,12 @@ The added vocabulary in `lexicon.py` is general Nairobi Sheng, not your own —
 it is marked as such, and striking what rings false is the intended way to use
 it.
 
-**Phase 3 — human texture.** The curated example library, and evaluation sets
-built from real conversations. Screenshots do not retrain a model; they build a
-reference library the prompt can draw on.
+**Phase 3 — human texture.** The example library is in: examples are stored,
+matched to the situation and shown to the model as reference. It is a reference
+and not a script — nothing is offered past a boundary, an example carries the
+conditions he marked it wrong for, at most two are ever shown, and the prompt
+says outright that the lines are not to be reused. There is no UI for it yet:
+examples go in through `POST /api/examples`. Still to come: evaluation sets.
 
 **Phase 4 — Android.** A share-to-assistant flow first, because it is the only
 approach that is officially supported.

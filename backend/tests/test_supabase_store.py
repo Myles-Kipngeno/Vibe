@@ -17,7 +17,7 @@ import json
 import httpx
 import pytest
 
-from app.schemas import FeedbackCreate, MemoryCreate
+from app.schemas import ConversationExampleCreate, FeedbackCreate, MemoryCreate
 from app.storage.base import StoreError
 from app.storage.supabase_store import SupabaseStore, subject_from_token
 
@@ -274,3 +274,69 @@ def test_both_stores_implement_the_same_contract():
             f"{impl.__name__} does not implement {set(impl.__abstractmethods__)}"
         )
         assert required <= set(dir(impl))
+
+
+# --- the example library -------------------------------------------------------
+
+EXAMPLE_ROW = {
+    "id": "ex-1",
+    "situation": "Starting a new chat, opening line",
+    "context": "",
+    "opening_line": "Niaje, that lecture was rough",
+    "language_mix": "mixed",
+    "tone": "",
+    "reaction": "Replied quickly",
+    "what_worked": "Named something we both sat through",
+    "what_did_not": "",
+    "not_suitable_when": "",
+    "created_at": "2026-09-19T10:00:00+00:00",
+}
+
+
+def test_saving_an_example_does_not_send_a_user_id():
+    fake = FakePostgrest({"conversation_examples": [EXAMPLE_ROW]})
+    make_store(fake).add_example(
+        ConversationExampleCreate(situation="Starting a new chat, opening line")
+    )
+
+    body = fake.sent_json()
+    assert "user_id" not in body, "the owner comes from auth.uid(), never the client"
+    assert body["situation"] == "Starting a new chat, opening line"
+
+
+def test_listing_examples_reads_them_back():
+    fake = FakePostgrest({"conversation_examples": [EXAMPLE_ROW]})
+    examples = make_store(fake).list_examples()
+
+    assert [e.id for e in examples] == ["ex-1"]
+    assert examples[0].opening_line == "Niaje, that lecture was rough"
+
+
+def test_a_null_column_becomes_an_empty_string_not_none():
+    """Postgres columns here are nullable; the schema promises strings."""
+    fake = FakePostgrest({"conversation_examples": [{**EXAMPLE_ROW, "context": None,
+                                                    "language_mix": None}]})
+    example = make_store(fake).list_examples()[0]
+    assert example.context == ""
+    assert example.language_mix == "mixed"
+
+
+def test_deleting_an_example_is_scoped_to_the_owner_as_well_as_rls():
+    fake = FakePostgrest({"conversation_examples": [EXAMPLE_ROW]})
+    assert make_store(fake).delete_example("ex-1") is True
+
+    query = str(fake.last.url)
+    assert "id=eq.ex-1" in query
+    assert f"user_id=eq.{USER_ID}" in query, "belt and braces on a delete"
+
+
+def test_deleting_someone_elses_example_reports_failure():
+    fake = FakePostgrest({"conversation_examples": []})
+    assert make_store(fake).delete_example("ex-1") is False
+
+
+def test_a_rejected_example_write_surfaces_as_a_clean_401():
+    fake = FakePostgrest(status=401)
+    with pytest.raises(StoreError) as exc:
+        make_store(fake).add_example(ConversationExampleCreate(situation="x"))
+    assert exc.value.status == 401

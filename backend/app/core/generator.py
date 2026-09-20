@@ -24,7 +24,7 @@ from ..schemas import (
     Suggestion,
     SuggestResponse,
 )
-from . import feedback_signal, personal_context, rhythm
+from . import example_library, feedback_signal, personal_context, rhythm
 from .prompts import SYSTEM_PROMPT, build_user_prompt
 from .style_profile import observe_their_style, style_brief
 
@@ -66,6 +66,7 @@ def generate(
     action: str | None,
     contact_name: str | None,
     feedback: list[dict] | None = None,
+    examples: list | None = None,
 ) -> SuggestResponse:
     is_mock = provider.is_mock
     provider_name = provider.name
@@ -119,6 +120,9 @@ def generate(
         goal = "next_day"
 
     signal = feedback_signal.summarize(feedback or [])
+    chosen = example_library.relevant(
+        examples or [], goal, analysis, profile.sheng_ratio
+    )
 
     user_prompt = build_user_prompt(
         messages=messages,
@@ -130,6 +134,7 @@ def generate(
         memories=memories,
         avoid=avoid,
         feedback_text=feedback_signal.feedback_brief(signal),
+        examples_text=example_library.examples_brief(chosen),
         action=action,
         goodnight=goodnight,
     )
@@ -147,6 +152,7 @@ def generate(
             "avoid": avoid,
             "supplied_context": supplied_context,
             "feedback": signal,
+            "examples": chosen,
         },
     )
 

@@ -1,5 +1,7 @@
 # Vibe
 
+[![checks](https://github.com/Myles-Kipngeno/Vibe/actions/workflows/ci.yml/badge.svg)](https://github.com/Myles-Kipngeno/Vibe/actions/workflows/ci.yml)
+
 A private conversation assistant. You paste a conversation, it tells you what it
 can honestly read from it, asks you about the things only you could know, and
 drafts replies in your own voice — Sheng + English, the way you actually text.
@@ -51,6 +53,11 @@ cd frontend
 npx tsc -b                              # type-check
 npm run build                           # production build
 ```
+
+All four checks — the tests, the offline eval set, the sharing verification and
+the frontend build — run on every push to `main`, which is what the badge at the
+top reports. `--generate` is deliberately not among them: it costs money and is
+not deterministic, so it stays a thing you run on purpose.
 
 ---
 

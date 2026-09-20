@@ -1,0 +1,65 @@
+name: checks
+
+# Runs the same four checks the README tells you to run, so the badge on it
+# means something. A badge asserting "tests passing" with nothing behind it is
+# the sort of unverified claim this project is built to avoid.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    # The suite must never reach a real Supabase project or a real model. The
+    # fixtures clear these already; setting them empty here as well means a CI
+    # secret added later cannot quietly turn the offline run into a live one.
+    env:
+      AI_PROVIDER: mock
+      ANTHROPIC_API_KEY: ""
+      SUPABASE_URL: ""
+      SUPABASE_ANON_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Backend tests
+        working-directory: backend
+        run: python -m pytest -q
+
+      - name: Eval set (offline half)
+        working-directory: backend
+        # The generation half needs a real provider and costs money, so CI runs
+        # only the deterministic half -- which must always pass.
+        run: python ../scripts/run_evals.py
+
+      - name: Share target and share sheet
+        run: node scripts/verify_sharing.mjs
+
+      - name: Frontend type-check and build
+        working-directory: frontend
+        run: |
+          npx tsc -b
+          npm run build

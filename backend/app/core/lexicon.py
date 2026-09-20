@@ -12,6 +12,13 @@ from __future__ import annotations
 # --- Sheng / Kenyan-English markers ------------------------------------------
 # Used to estimate how much Sheng a person actually writes. These are words that
 # are rare in plain English texting, so a hit is strong evidence of Sheng.
+#
+# Words that are also ordinary English are deliberately absent, however good the
+# Sheng is. "form" ("niko form"), "base" and "squad" each cost more than they
+# earn: "Did you fill the form yet?" used to score 0.71, reading a plain-English
+# texter as heavier Sheng than someone actually mixing, and the generator would
+# then write Sheng back at him. Recognising them needs the phrase around them,
+# not the word alone.
 SHENG_MARKERS: frozenset[str] = frozenset(
     {
         # greetings / openers
@@ -19,18 +26,18 @@ SHENG_MARKERS: frozenset[str] = frozenset(
         "mzuka", "aiseh", "aisee", "eish", "ala",
         # people
         "msee", "wasee", "buda", "budaa", "mzee", "chali", "dame", "demu", "manzi",
-        "mrembo", "siste", "brathe", "mathe", "fathe", "boyz", "squad",
+        "mrembo", "siste", "brathe", "mathe", "fathe", "boyz",
         "beshte", "jamaa", "wadhii",
         # states / reactions
         "poa", "fiti", "freshi", "noma", "sawa", "safi",
-        "bonoko", "ngori", "kali", "form",
+        "bonoko", "ngori", "kali",
         # verbs / actions
         "kuja", "twende", "tuko", "niko", "uko", "nakam", "nakuja", "nimefika",
         "kudunda", "kuchill", "kuhepa", "kuenjoy", "kutoa", "kuomoka",
         "nimeamka", "nimelala", "umelala", "umeamka", "nishafika",
         # money / places
         "doo", "ganji", "chapaa", "mbao", "ngiri", "keja", "mtaa", "tao",
-        "ploti", "base",
+        "ploti",
         # discourse glue
         "manze", "bana", "ati", "eti", "wacha", "acha", "yaani", "kwanza",
         "kabisa", "buree", "tena", "basi", "haya", "sindio", "aje",
@@ -39,12 +46,61 @@ SHENG_MARKERS: frozenset[str] = frozenset(
     }
 )
 
+# --- Verb morphology ----------------------------------------------------------
+# Sheng and Kiswahili build verbs by agglutination: subject prefix + tense +
+# stem, so "enda" (go) surfaces as nilienda, umeenda, tutaenda, anaenda and
+# dozens more. Enumerating those in SHENG_MARKERS is a losing game -- the list
+# had four hand-written forms of "wake up" and still scored "Nilienda town
+# jana" as pure English. These pieces let the detector recognise the shape.
+VERB_SUBJECT_PREFIXES: tuple[str, ...] = ("ni", "u", "a", "tu", "m", "wa")
+
+VERB_TENSE_MARKERS: tuple[str, ...] = (
+    "na",    # present      -- ninakuja
+    "me",    # perfect      -- nimekuja
+    "li",    # past         -- nilikuja
+    "ta",    # future       -- nitakuja
+    "ka",    # consecutive  -- nikakuja
+    "ki",    # conditional  -- nikikuja
+    "sha",   # already      -- nishakuja
+    "mesha", # emphatic     -- nimeshakuja
+)
+
+# English words that happen to decompose into a valid prefix + tense. Without
+# this guard "unable", "america" and "analysis" all read as Sheng verbs, which
+# is exactly the false positive the marker list was already making.
+ENGLISH_VERB_LOOKALIKES: frozenset[str] = frozenset(
+    {
+        "unable", "unaware", "unanimous", "unavailable", "unaccounted",
+        "analysis", "analyse", "analyze", "anatomy", "analogy", "anagram",
+        "amend", "amended", "america", "american", "amenity", "amenities",
+        "aka", "akin", "aki", "ukase", "uta", "utah",
+        "manage", "manager", "mana", "mane", "makeup",
+        "water", "waste", "wake", "wali", "wallet",
+        "tuna", "tune", "tuned", "tuning", "tumble",
+        "nike", "nine", "nice", "niche",
+        "asha", "ashamed", "atalk",
+    }
+)
+
 # Kiswahili words kept deliberately small for now (product decision: Sheng +
 # English first, Kiswahili very light).
 SWAHILI_MARKERS: frozenset[str] = frozenset(
     {
+        # courtesies
         "habari", "asante", "karibu", "pole", "samahani", "tafadhali", "nzuri",
         "sawasawa", "ndio", "hapana", "kwaheri", "usiku", "mwema", "lala",
+        # time -- the everyday words that carry most texting
+        "leo", "jana", "kesho", "asubuhi", "mchana", "jioni", "saa", "ngapi",
+        "siku", "wiki", "mwezi", "sasahivi", "bado", "tayari", "mapema",
+        # question words
+        "nini", "wapi", "gani", "nani", "lini", "kwani", "kwanini", "aje",
+        # people and things
+        "mtu", "watu", "kitu", "vitu", "rafiki", "familia", "shule", "kazi",
+        "nyumbani", "pesa", "chakula", "maji", "simu", "gari", "maneno",
+        # pronouns and glue
+        "mimi", "wewe", "sisi", "nyinyi", "yeye", "wao", "yangu", "yako",
+        "yake", "hii", "hiyo", "ile", "hapo", "huku", "kule",
+        "lakini", "pia", "kama", "ama", "hadi", "mpaka", "juu", "sana",
     }
 )
 

@@ -43,7 +43,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 120 tests
+.venv\Scripts\python.exe -m pytest      # 130 tests
 ```
 
 ```bash
@@ -159,7 +159,7 @@ two test users stay in **Authentication → Users**; delete them there.
 backend/
   app/
     core/                what makes this product different -- all deterministic
-      lexicon.py         Sheng/English word lists, boundary and alert phrases
+      lexicon.py         Sheng/English word lists, verb morphology, alert phrases
       textstats.py       language-mix, emoji, low-effort-reply measurements
       parser.py          pasted text -> labelled messages (WhatsApp, "Me:", …)
       personal_context.py  raises an alert instead of guessing  <-- the core idea
@@ -173,7 +173,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 120 tests, realistic conversations, fictional names
+  tests/                 130 tests, realistic conversations, fictional names
 frontend/
   src/pages/             Dashboard, Workspace, Contacts, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …

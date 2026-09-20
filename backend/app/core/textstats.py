@@ -10,11 +10,14 @@ import re
 import unicodedata
 
 from .lexicon import (
+    ENGLISH_VERB_LOOKALIKES,
     LAUGH_EMOJI,
     LAUGH_TOKENS,
     LOW_EFFORT_REPLIES,
     SHENG_MARKERS,
     SWAHILI_MARKERS,
+    VERB_SUBJECT_PREFIXES,
+    VERB_TENSE_MARKERS,
 )
 
 _WORD_RE = re.compile(r"[a-z0-9']+")
@@ -53,21 +56,58 @@ def emojis(text: str) -> list[str]:
     return [ch for ch in text if is_emoji(ch)]
 
 
+_VERB_RE = re.compile(
+    "^(?:"
+    + "|".join(sorted(VERB_SUBJECT_PREFIXES, key=len, reverse=True))
+    + ")(?:"
+    + "|".join(sorted(VERB_TENSE_MARKERS, key=len, reverse=True))
+    + ")[a-z]{3,}$"
+)
+
+
+def looks_like_bantu_verb(word: str) -> bool:
+    """True when a word has the shape of a conjugated Sheng/Kiswahili verb.
+
+    Recognising the *shape* rather than the word is what lets the ratio see
+    "nilienda", "tutaonana" and "anakuja" without anyone having listed them.
+    It is a shape test and nothing more: it cannot tell a real stem from a
+    plausible one, so it is deliberately conservative -- it demands a stem of
+    at least three letters, which puts the shortest possible match at six
+    characters, and keeps an explicit stop-list for the English words that
+    decompose the same way.
+    """
+    word = word.strip().lower()
+    if word in ENGLISH_VERB_LOOKALIKES:
+        return False
+    return bool(_VERB_RE.match(word))
+
+
 def sheng_ratio(texts: list[str]) -> float:
     """Share of word tokens that are recognisably Sheng or Kiswahili.
 
-    This is a *marker* ratio, not a true language-ID score: it under-counts
-    Sheng sentences built from words we do not list. It is good enough to tell
-    "writes mostly English" from "mixes heavily", which is what the generator
-    needs, and it never claims more precision than that.
+    This is a *marker* ratio, not a true language-ID score, and it still
+    under-counts Sheng built from words nobody has listed. It is good enough to
+    tell "writes mostly English" from "mixes heavily", which is what the
+    generator needs, and it claims nothing beyond that.
+
+    A token counts if it is a listed marker or has the shape of a conjugated
+    verb, which is what lets "Nilienda town jana" register at all -- as a word
+    list alone it scored zero, because no list can hold every conjugation.
+
+    The small scale-up is the honest remainder of that under-counting. It used
+    to be x4, from when only sparse markers counted; with everyday vocabulary
+    and verb shapes recognised it saturated instead, calling one Swahili verb
+    in a three-word message a fully Sheng conversation.
     """
     tokens = [w for t in texts for w in words(t)]
     if not tokens:
         return 0.0
-    hits = sum(1 for w in tokens if w in SHENG_MARKERS or w in SWAHILI_MARKERS)
-    # Markers are sparse by nature, so scale up and clamp: a message with one
-    # marker in eight words already reads as mixed-language.
-    return min(1.0, (hits / len(tokens)) * 4.0)
+    hits = sum(
+        1
+        for w in tokens
+        if w in SHENG_MARKERS or w in SWAHILI_MARKERS or looks_like_bantu_verb(w)
+    )
+    return min(1.0, (hits / len(tokens)) * 1.5)
 
 
 def avg_word_count(texts: list[str]) -> float:

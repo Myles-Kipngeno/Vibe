@@ -15,6 +15,7 @@ os.environ["AI_PROVIDER"] = "mock"
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="vibe-test-")
 
 from app.api import deps  # noqa: E402
+from app.api.rate_limit import reset_limits  # noqa: E402
 from app.providers.registry import reset_provider_cache  # noqa: E402
 from app.schemas import Message  # noqa: E402
 
@@ -33,6 +34,10 @@ def store(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
+    # The rate limiter counts per process, so without this a test spends the
+    # budget of the ones after it and they see 429s they never asked for. Each
+    # test is a separate session; it should start with a full allowance.
+    reset_limits()
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("AI_PROVIDER", "mock")
     monkeypatch.delenv("SUPABASE_URL", raising=False)
@@ -47,6 +52,7 @@ def client(tmp_path, monkeypatch):
     with TestClient(app) as test_client:
         yield test_client
 
+    reset_limits()
     deps.reset_caches()
     reset_provider_cache()
 

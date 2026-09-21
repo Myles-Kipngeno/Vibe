@@ -45,7 +45,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 217 tests
+.venv\Scripts\python.exe -m pytest      # 232 tests
 ```
 
 ```bash
@@ -183,7 +183,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 217 tests, realistic conversations, fictional names
+  tests/                 232 tests, realistic conversations, fictional names
 frontend/
   public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
@@ -353,6 +353,24 @@ wording. That half costs money
 and is not deterministic, so a failure there is a reason to go and look rather
 than proof of a bug. Without a real provider configured it skips those checks
 rather than running them against templates.
+
+## What it refuses to spend
+
+`/suggest` is the only endpoint that calls a paid model, and the key it spends
+belongs to whoever deployed this rather than to whoever is asking. Two ceilings
+keep that from being anyone's problem.
+
+**How often.** Six generations a minute and sixty an hour, per signed-in
+account (per address in local mode). `SUGGEST_PER_MINUTE` and
+`SUGGEST_PER_HOUR` change them; 0 turns one off. A refusal is a 429 carrying
+`Retry-After`, so a client can wait rather than hammer. The counter lives in
+the process, which is enough for one instance and wrong for several — scale
+past one and it needs a shared counter.
+
+**How much.** Every request field reaches the prompt and is billed per token,
+so each is bounded: 4,000 characters a message, 500 messages, 100,000
+characters a paste, and caps on the context answers and the already-shown list.
+None should ever be met by someone using the app.
 
 ## Privacy
 

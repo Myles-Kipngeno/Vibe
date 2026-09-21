@@ -83,6 +83,16 @@ class Settings:
             if o.strip()
         )
     )
+    # How often one identity may ask for replies. /suggest is the only endpoint
+    # that spends money, and the key it spends belongs to whoever deployed this,
+    # not to the person asking. Set either to 0 to turn that ceiling off.
+    suggest_per_minute: int = field(
+        default_factory=lambda: int(os.getenv("SUGGEST_PER_MINUTE", "6"))
+    )
+    suggest_per_hour: int = field(
+        default_factory=lambda: int(os.getenv("SUGGEST_PER_HOUR", "60"))
+    )
+
     # Off by default: message bodies are private and should not end up in logs.
     log_message_content: bool = field(
         default_factory=lambda: _env_bool("LOG_MESSAGE_CONTENT", False)

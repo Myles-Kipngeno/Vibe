@@ -8,9 +8,9 @@ Keeping them in one module makes it easy to keep the TypeScript types in
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 Speaker = Literal["me", "them"]
 
@@ -36,6 +36,23 @@ Recommendation = Literal["continue", "stop", "wait"]
 # --- Messages -----------------------------------------------------------------
 
 
+# --- Input limits -------------------------------------------------------------
+# Nothing below is a guess at what a person would type; they are ceilings on
+# what a request may cost. Every one of these fields is concatenated into a
+# prompt, and the prompt is billed per token, so an unbounded field is an
+# unbounded bill. The generous side of realistic is the right place for them:
+# they should never be met by ordinary use, only by abuse or a bug.
+
+MAX_MESSAGE_CHARS = 4_000        # one text message; WhatsApp's own cap is far higher
+MAX_MESSAGES = 500               # only the last 30 reach the prompt anyway
+MAX_PASTE_CHARS = 100_000        # a pasted conversation, exported and long
+MAX_LABEL_CHARS = 60             # "Me", "Her", a name
+MAX_AVOID = 20                   # suggestions already shown this session
+MAX_AVOID_CHARS = 2_000
+MAX_CONTEXT_ITEMS = 40           # answers to context alerts
+MAX_CONTEXT_CHARS = 2_000
+
+
 class Message(BaseModel):
     """One message in a conversation.
 
@@ -45,16 +62,16 @@ class Message(BaseModel):
     """
 
     speaker: Speaker
-    text: str
+    text: str = Field(max_length=MAX_MESSAGE_CHARS)
     sent_at: Optional[datetime] = None
 
 
 class ParseRequest(BaseModel):
     """Raw pasted text plus the labels used for each side."""
 
-    raw_text: str
-    me_label: str = "Me"
-    them_label: str = "Them"
+    raw_text: str = Field(max_length=MAX_PASTE_CHARS)
+    me_label: str = Field("Me", max_length=MAX_LABEL_CHARS)
+    them_label: str = Field("Them", max_length=MAX_LABEL_CHARS)
 
 
 class ParseResponse(BaseModel):
@@ -179,7 +196,7 @@ class Analysis(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    messages: list[Message]
+    messages: list[Message] = Field(max_length=MAX_MESSAGES)
     contact_id: Optional[str] = None
     local_time: Optional[datetime] = None
 
@@ -202,15 +219,18 @@ class Suggestion(BaseModel):
 
 
 class SuggestRequest(BaseModel):
-    messages: list[Message]
+    messages: list[Message] = Field(max_length=MAX_MESSAGES)
     goal: str = "keep_flowing"
     contact_id: Optional[str] = None
-    supplied_context: dict[str, str] = Field(
+    supplied_context: dict[str, Annotated[str, StringConstraints(max_length=MAX_CONTEXT_CHARS)]] = Field(
         default_factory=dict,
+        max_length=MAX_CONTEXT_ITEMS,
         description="Answers to context alerts, keyed by alert dedupe_key",
     )
-    avoid: list[str] = Field(
-        default_factory=list, description="Previously shown suggestions not to repeat"
+    avoid: list[Annotated[str, StringConstraints(max_length=MAX_AVOID_CHARS)]] = Field(
+        default_factory=list,
+        max_length=MAX_AVOID,
+        description="Previously shown suggestions not to repeat",
     )
     action: Optional[Recommendation] = Field(
         None, description="Set when the user picked Continue / Stop / Wait"

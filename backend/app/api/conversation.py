@@ -20,6 +20,7 @@ from ..schemas import (
 )
 from ..storage.store import Store
 from .deps import get_provider, get_store
+from .rate_limit import limit_generation
 
 router = APIRouter(prefix="/api/conversation", tags=["conversation"])
 
@@ -73,7 +74,11 @@ def analyze(
     )
 
 
-@router.post("/suggest", response_model=SuggestResponse)
+@router.post(
+    "/suggest",
+    response_model=SuggestResponse,
+    dependencies=[Depends(limit_generation)],
+)
 def suggest(
     payload: SuggestRequest,
     store: Store = Depends(get_store),

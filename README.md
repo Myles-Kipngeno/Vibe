@@ -45,7 +45,7 @@ which holds the key.
 
 ```bash
 cd backend
-.venv\Scripts\python.exe -m pytest      # 232 tests
+.venv\Scripts\python.exe -m pytest      # 244 tests
 ```
 
 ```bash
@@ -185,7 +185,7 @@ backend/
     storage/store.py     local JSON store (default, no account needed)
     storage/supabase_store.py  Postgres via PostgREST, queried as the user
     api/                 FastAPI routes
-  tests/                 232 tests, realistic conversations, fictional names
+  tests/                 244 tests, realistic conversations, fictional names
 frontend/
   public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
@@ -236,6 +236,9 @@ testable and why it works with no API key:
   suggestion again replaces your earlier verdict rather than counting twice.
   Under four verdicts it says nothing at all — four rejections are as likely to
   be four weak suggestions as a standing preference.
+- **Subject, only when there is one.** A word has to recur before it is called
+  the topic. In most short conversations nothing does, so it says so rather
+  than naming the most alphabetically fortunate word in the thread.
 - **Confidence.** Every reading carries a confidence level, and "what I do not
   know" is shown next to "what I can tell".
 

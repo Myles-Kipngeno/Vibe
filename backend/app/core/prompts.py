@@ -76,14 +76,22 @@ def build_user_prompt(
     sections: list[str] = []
     sections.append("## The conversation so far\n" + _format_transcript(messages))
 
-    sections.append(
-        "## What the system measured\n"
-        f"- Topic (rough): {analysis.topic}\n"
-        f"- Energy: {analysis.tone} (confidence: {analysis.tone_confidence})\n"
-        f"- Her engagement: {analysis.engagement} (confidence: {analysis.engagement_confidence})\n"
-        f"- Thread state: {analysis.flow_state.replace('_', ' ')}\n"
-        f"- Recommendation: {analysis.recommendation} -- {analysis.recommendation_reason}"
-    )
+    measured = []
+    # Only when a word actually recurred. The model is reading the conversation
+    # a few lines above this, so a guess at its subject earns a line only when
+    # there is evidence for one -- never as filler. It used to be unconditional,
+    # and for "how did the interview go?" it said "about, actually, asking".
+    if analysis.topic:
+        measured.append(f"- Recurring subject: {analysis.topic}")
+    measured += [
+        f"- Energy: {analysis.tone} (confidence: {analysis.tone_confidence})",
+        f"- Her engagement: {analysis.engagement} "
+        f"(confidence: {analysis.engagement_confidence})",
+        f"- Thread state: {analysis.flow_state.replace('_', ' ')}",
+        f"- Recommendation: {analysis.recommendation} -- "
+        f"{analysis.recommendation_reason}",
+    ]
+    sections.append("## What the system measured\n" + "\n".join(measured))
 
     if analysis.open_questions:
         unanswered = "\n".join(

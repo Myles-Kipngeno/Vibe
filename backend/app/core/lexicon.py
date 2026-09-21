@@ -123,6 +123,36 @@ LAUGH_TOKENS: frozenset[str] = frozenset(
 
 LAUGH_EMOJI: frozenset[str] = frozenset({"\U0001F602", "\U0001F923", "\U0001F639"})
 
+# --- Words that are never a topic ---------------------------------------------
+# Function words and conversational filler. Kept deliberately short: the real
+# protection against nonsense topics is requiring a word to recur, not trying
+# to enumerate every word in English that is not a subject.
+TOPIC_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "about", "actually", "after", "again", "along", "already", "also",
+        "always", "another", "anything", "around", "asked", "asking", "away",
+        "back", "because", "been", "before", "being", "better", "both",
+        "came", "come", "coming", "could", "definitely", "does", "doing",
+        "done", "down", "each", "else", "even", "ever", "every", "from",
+        "gave", "getting", "give", "goes", "going", "gone", "good", "great",
+        "guess", "have", "having", "here", "hope", "into", "keep", "kind",
+        "last", "later", "leave", "like", "little", "long", "look", "looking",
+        "made", "make", "making", "many", "maybe", "might", "more", "most",
+        "much", "must", "need", "never", "next", "nice", "only", "other",
+        "over", "perhaps", "please", "pretty", "probably", "quite", "rather",
+        "really", "right", "said", "same", "says", "seen", "should", "since",
+        "some", "something", "soon", "sorry", "still", "such", "sure", "take",
+        "tell", "than", "that", "their", "them", "then", "there", "these",
+        "they", "thing", "things", "think", "this", "those", "though",
+        "thought", "through", "time", "together", "told", "took", "very",
+        "want", "wanted", "well", "went", "were", "what", "when", "where",
+        "which", "while", "will", "with", "without", "would", "your",
+        # Sheng and Kiswahili filler that is grammar, not subject
+        "kwanza", "manze", "sasa", "sana", "tena", "yaani", "kabisa",
+    }
+)
+
+
 # --- Relationship / person nouns ---------------------------------------------
 # A question containing one of these very often refers to a person only the two
 # texters know, which is exactly when we must not invent details.

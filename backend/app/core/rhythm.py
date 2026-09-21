@@ -256,24 +256,37 @@ def summarise(messages: list[Message], level: str, flow: FlowState) -> str:
 
 
 def topic_guess(messages: list[Message]) -> str:
-    """A crude content-word summary of what is being talked about.
+    """What is being talked about, when that can be told from words alone.
 
-    Deliberately labelled as a guess: the LLM layer produces a better topic when
-    a provider is configured, and this keeps the offline mode honest.
+    A word used once is not a topic, it is a word. The previous version counted
+    every content word and, because nothing repeats in a short conversation,
+    broke the tie alphabetically -- so "how did the interview go?" came back as
+    "about, actually, asking", which is the first three words of the alphabet
+    and nothing to do with the interview. That went into every prompt.
+
+    Recurrence is the only evidence available here that a word is the subject
+    rather than incidental, so nothing is claimed without it. Most short
+    conversations therefore return nothing at all, which is the honest answer:
+    the model reading this has the conversation itself, and the interface can
+    say it is not sure.
     """
-    stop = (
-        lex.NAME_STOPWORDS
-        | lex.LOW_EFFORT_REPLIES
-        | {"just", "like", "know", "think", "want", "going", "really", "even", "still"}
-    )
+    stop = lex.NAME_STOPWORDS | lex.LOW_EFFORT_REPLIES | lex.TOPIC_STOPWORDS
+
     counts: dict[str, int] = {}
-    for m in messages[-8:]:
+    first_seen: dict[str, int] = {}
+    for position, m in enumerate(messages[-8:]):
         for w in words(normalize(m.text)):
             if len(w) < 4 or w in stop:
                 continue
             counts[w] = counts.get(w, 0) + 1
-    ranked = [w for w, _ in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))][:3]
-    return ", ".join(ranked) if ranked else "small talk"
+            first_seen.setdefault(w, position)
+
+    # Ties break on where the word first appeared, not on the alphabet. Two
+    # equally frequent words are equally good guesses; the earlier one at least
+    # reflects the conversation rather than its spelling.
+    recurring = [w for w, n in counts.items() if n >= 2]
+    ranked = sorted(recurring, key=lambda w: (-counts[w], first_seen[w]))[:3]
+    return ", ".join(ranked)
 
 
 def build_analysis(

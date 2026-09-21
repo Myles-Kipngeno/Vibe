@@ -22,7 +22,15 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
   return (
     <Card title="What I can tell" subtitle={analysis.summary}>
       <div className="divide-y divide-line">
-        <Row label="Topic">{analysis.topic}</Row>
+        <Row label="Topic">
+          {analysis.topic || (
+            // Empty means no word recurred, which is most short conversations.
+            // Saying so is the point: this panel is about what can be told, and
+            // a blank row reads as something failing rather than something
+            // honestly unknown.
+            <span className="text-muted">nothing stands out yet</span>
+          )}
+        </Row>
         <Row label="Energy">
           <Pill tone="accent">{analysis.tone}</Pill>{" "}
           <span className="text-muted">({analysis.tone_confidence} confidence)</span>

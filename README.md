@@ -50,12 +50,14 @@ cd backend
 
 ```bash
 cd frontend
+npm test                                # 22 component tests
 npx tsc -b                              # type-check
 npm run build                           # production build
 ```
 
-All four checks — the tests, the offline eval set, the sharing verification and
-the frontend build — run on every push to `main`, which is what the badge at the
+All five checks — the backend tests, the offline eval set, the sharing
+verification, the frontend tests and the frontend build — run on every push to
+`main`, which is what the badge at the
 top reports. `--generate` is deliberately not among them: it costs money and is
 not deterministic, so it stays a thing you run on purpose.
 
@@ -188,6 +190,7 @@ frontend/
   public/                PWA manifest, the share-target service worker, icons
   src/pages/             Dashboard, Workspace, Contacts, Library, My Style, Settings
   src/components/        AlertCard (the context prompt), SuggestionCard, …
+  *.test.tsx             what the card records, and what it must not
   src/lib/auth.ts        Supabase Auth only -- the browser never queries the DB
 supabase/schema.sql      tables, owner-only RLS policies, signup trigger
 render.yaml              the backend as a Render service, secrets prompted for

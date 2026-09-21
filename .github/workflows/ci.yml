@@ -1,6 +1,6 @@
 name: checks
 
-# Runs the same four checks the README tells you to run, so the badge on it
+# Runs the same checks the README tells you to run, so the badge on it
 # means something. A badge asserting "tests passing" with nothing behind it is
 # the sort of unverified claim this project is built to avoid.
 
@@ -57,6 +57,10 @@ jobs:
 
       - name: Share target and share sheet
         run: node scripts/verify_sharing.mjs
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm test
 
       - name: Frontend type-check and build
         working-directory: frontend

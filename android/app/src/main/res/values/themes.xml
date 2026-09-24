@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Vibe" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/vibe_bg</item>
+        <item name="android:statusBarColor">@color/vibe_bg</item>
+        <item name="android:navigationBarColor">@color/vibe_bg</item>
+    </style>
+    <color name="vibe_bg">#0C0B10</color>
+    <color name="vibe_icon_bg">#15131C</color>
+</resources>

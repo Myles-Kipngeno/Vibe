@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Vibe mark: a four-point sparkle with a small companion star. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#B9A8FF"
+        android:pathData="M50,30 C51.6,43 55,46.4 68,48 C55,49.6 51.6,53 50,66 C48.4,53 45,49.6 32,48 C45,46.4 48.4,43 50,30 Z" />
+    <path
+        android:fillColor="#7C6CF0"
+        android:pathData="M68,58 C68.6,63 70,64.4 75,65 C70,65.6 68.6,67 68,72 C67.4,67 66,65.6 61,65 C66,64.4 67.4,63 68,58 Z" />
+</vector>

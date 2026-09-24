@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vibe</string>
+    <string name="ime_name">Vibe Keyboard</string>
+    <string name="ime_subtype">English + Sheng</string>
+</resources>

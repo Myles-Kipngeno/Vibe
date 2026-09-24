@@ -71,3 +71,21 @@ jobs:
         run: |
           npx tsc -b
           npm run build
+
+  android:
+    # The keyboard. A separate job so a Gradle download never slows the
+    # backend checks, and so the badge fails if the app stops compiling.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests and debug build
+        working-directory: android
+        run: ./gradlew testDebugUnitTest assembleDebug --console=plain

@@ -10,9 +10,78 @@ It is not a pickup-line generator. The thing that makes it different is what it
 *refuses* to do: it will not invent a person, an event or a shared memory, and it
 will not help you talk someone out of a boundary.
 
+**Vibe is becoming a keyboard.** The Android keyboard in [`android/`](android/)
+is now the product: open a chat, copy their message, and a small Vibe card
+appears above the keys with a reply, a question about something only you
+know, or nothing at all. The web app below is the earlier version; its
+backend is staying, as the brain the keyboard will call.
+
 ---
 
-## Running it locally
+## The Android keyboard (`android/`)
+
+Kotlin, Jetpack Compose, an `InputMethodService`. Milestone 1 runs entirely
+on the phone with a **mock** AI, and suggestions are labelled PREVIEW.
+
+### Build and install
+
+You need JDK 17+ and the Android SDK (Android Studio brings both).
+
+```bash
+cd android
+./gradlew testDebugUnitTest      # engine + card state machine
+./gradlew assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Then open **Vibe**, turn the keyboard on and switch to it, and tap **Try it**
+for a practice chat covering every card: suggestion, needs context, picture
+request, winding down, a boundary, and a message it deliberately ignores.
+
+### What a keyboard can and cannot see
+
+A keyboard sees the box it is typing into, and the clipboard (Android lets
+only the active keyboard read it). **It cannot read the chat on screen**, in
+WhatsApp or anywhere else. So Vibe works from what you copy: long-press their
+message → Copy → tap the message box, and the card is there. Tapping ✦ asks
+by hand. Several messages copied together keep who said what.
+
+### What it holds itself to
+
+- **No internet permission.** The manifest does not ask for it, so nothing
+  typed on the phone can leave it. It arrives with the real AI provider, not
+  before.
+- **Off in private fields.** Password and incognito fields get a plain
+  keyboard; Vibe reads nothing there.
+- **Fresh clips only.** A message copied in the last minute or so, never
+  one that has sat on the clipboard, and never one marked sensitive.
+- **Context is per chat and in memory.** What you tell it ("Randy is my
+  cousin") is forgotten when you switch apps, so one person's context never
+  reaches another conversation.
+- **Auto Reply fills the box; it never sends.** Generating, inserting and
+  sending are separate steps, and Vibe only ever does the first two. No
+  messaging app lets a keyboard press Send, and Vibe does not pretend to.
+
+### Layout
+
+```
+android/app/src/main/java/com/vibe/keyboard/
+  ime/        VibeInputMethodService, clipboard source, text insertion, root layout
+  keyboard/   keys, layouts, shift/mode state
+  overlay/    VibeController (the card's state machine), VibeCard, session memory
+  engine/     conversation parsing and on-device detection (a port of backend/core)
+  ai/         AIProvider interface; MockAIProvider (RemoteAIProvider comes next)
+  settings/   DataStore switches: suggest on copy, Auto Reply, haptics
+  app/        companion app: setup, settings, privacy, practice chat
+```
+
+The phone will never hold a model key. `RemoteAIProvider` will call this
+repo's backend `/api/conversation/suggest`, which already has the prompts
+and the context and boundary gates.
+
+---
+
+## Running the backend and web app locally
 
 You need **two terminals**. Everything runs on your machine.
 
@@ -55,9 +124,9 @@ npx tsc -b                              # type-check
 npm run build                           # production build
 ```
 
-All five checks — the backend tests, the offline eval set, the sharing
-verification, the frontend tests and the frontend build — run on every push to
-`main`, which is what the badge at the
+All six checks — the backend tests, the offline eval set, the sharing
+verification, the frontend tests, the frontend build and the Android keyboard's
+tests and build — run on every push to `main`, which is what the badge at the
 top reports. `--generate` is deliberately not among them: it costs money and is
 not deterministic, so it stays a thing you run on purpose.
 
@@ -431,9 +500,10 @@ yet, it is a thing the platforms do not offer:
   access, which Google restricts to apps whose core function requires it, and
   which would mean this app watching every notification on the phone. That is a
   worse trade than a share sheet, not a better one.
-- **A custom keyboard is technically possible** and stays possible. It is also
-  an input method with sight of everything typed on the device, including
-  passwords, in every app. It would need its own security review and a much
-  stronger reason than saving a tap.
+- **A custom keyboard** is the one route that exists, and it is what `android/`
+  now is. It is also an input method with sight of everything typed on the
+  device, which is why it ships without internet access, steps aside in
+  password fields, and reads only what you copy. See *The Android keyboard*
+  above.
 
 Anything claiming otherwise is claiming something that does not exist.

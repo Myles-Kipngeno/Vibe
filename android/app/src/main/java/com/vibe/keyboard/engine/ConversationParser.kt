@@ -14,7 +14,9 @@ object ConversationParser {
         """^\[(\d{1,2}:\d{2}(?:\s?[APap][Mm])?),\s*[^\]]+]\s*([^:]{1,40}):\s?(.*)$""",
     )
 
-    fun parse(copied: String, myName: String? = null): Conversation {
+    fun parse(copied: String, myName: String? = null): Conversation = parse(copied, listOfNotNull(myName))
+
+    fun parse(copied: String, myNames: List<String>): Conversation {
         val lines = copied.lines().map { it.trimEnd() }.filter { it.isNotBlank() }
         if (lines.isEmpty()) return Conversation(emptyList())
 
@@ -37,7 +39,7 @@ object ConversationParser {
         // Whoever sent the last message in a copied block is usually the other
         // person -- that is why the user is replying. The user can set their own
         // name later; until then this is the least-wrong guess.
-        val me = myName?.takeIf { n -> names.any { it.equals(n, ignoreCase = true) } }
+        val me = myNames.firstOrNull { n -> names.any { it.equals(n, ignoreCase = true) } }
             ?: names.firstOrNull { it != parsed.last().first }.takeIf { names.size > 1 }
 
         return Conversation(
@@ -45,6 +47,7 @@ object ConversationParser {
                 val speaker = if (me != null && who.equals(me, ignoreCase = true)) Speaker.ME else Speaker.THEM
                 ChatMessage(speaker, text.toString())
             }.filter { it.text.isNotBlank() },
+            theirNames = names.filterNot { me != null && it.equals(me, ignoreCase = true) },
         )
     }
 }

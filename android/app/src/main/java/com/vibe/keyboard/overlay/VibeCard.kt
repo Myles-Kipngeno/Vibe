@@ -66,6 +66,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.vibe.keyboard.auto.ReplyMode
 import com.vibe.keyboard.ui.MarkMood
 import com.vibe.keyboard.ui.VibeIcons
 import com.vibe.keyboard.ui.VibeMark
@@ -89,6 +90,23 @@ interface CardActions {
     fun replyToPicture()
     fun replyToBoundary()
     fun retry()
+    fun cancelSend()
+    fun selectOption(index: Int)
+    fun openPanel()
+    fun scan()
+    fun chooseConversation()
+    fun newConversation()
+    fun selectConversation(id: String)
+    fun continueWithoutContext()
+    fun openImport()
+    fun openSettings()
+    fun setMode(mode: ReplyMode)
+    fun confirmAuto()
+    fun openMemory()
+    fun forgetMemory(id: String)
+    fun editMemory(id: String)
+    fun askClearMemory()
+    fun confirmClearMemory()
 }
 
 fun VibeController.asCardActions(): CardActions = object : CardActions {
@@ -105,6 +123,23 @@ fun VibeController.asCardActions(): CardActions = object : CardActions {
     override fun replyToPicture() = this@asCardActions.replyToPicture()
     override fun replyToBoundary() = this@asCardActions.replyToBoundary()
     override fun retry() = this@asCardActions.retry()
+    override fun cancelSend() = this@asCardActions.cancelSend()
+    override fun selectOption(index: Int) = this@asCardActions.selectOption(index)
+    override fun openPanel() = this@asCardActions.openPanel()
+    override fun scan() = this@asCardActions.onScan()
+    override fun chooseConversation() = this@asCardActions.chooseConversation()
+    override fun newConversation() = this@asCardActions.newConversation()
+    override fun selectConversation(id: String) = this@asCardActions.selectConversation(id)
+    override fun continueWithoutContext() = this@asCardActions.continueWithoutContext()
+    override fun openImport() = this@asCardActions.openImport()
+    override fun openSettings() = this@asCardActions.openSettings()
+    override fun setMode(mode: ReplyMode) = this@asCardActions.requestMode(mode)
+    override fun confirmAuto() = this@asCardActions.confirmAuto()
+    override fun openMemory() = this@asCardActions.openMemory()
+    override fun forgetMemory(id: String) = this@asCardActions.forgetMemory(id)
+    override fun editMemory(id: String) = this@asCardActions.editMemory(id)
+    override fun askClearMemory() = this@asCardActions.askClearMemory()
+    override fun confirmClearMemory() = this@asCardActions.confirmClearMemory()
 }
 
 private val CardShape = RoundedCornerShape(22.dp)
@@ -163,7 +198,7 @@ fun VibeCardHost(
 @Composable
 private fun CardContent(card: CardState, actions: CardActions, compact: Boolean) {
     when (card) {
-        is CardState.Suggestion -> SuggestionContent(card, actions)
+        is CardState.Suggestion -> SuggestionContent(card, actions, compact)
         is CardState.ContextNeeded -> ContextContent(card, actions, compact)
         is CardState.Ending -> EndingContent(card, actions)
         is CardState.PictureRequest -> PictureContent(card, actions, compact)
@@ -171,6 +206,14 @@ private fun CardContent(card: CardState, actions: CardActions, compact: Boolean)
         is CardState.Thinking -> ThinkingContent(card)
         is CardState.Notice -> NoticeContent(card, actions)
         is CardState.Failed -> FailedContent(card, actions)
+        is CardState.Attention -> AttentionContent(card, actions, compact)
+        is CardState.Panel -> PanelContent(card, actions, compact)
+        is CardState.ChooseConversation -> ChooseContent(card, actions, compact)
+        is CardState.NameConversation -> NameContent(card, actions)
+        is CardState.ContextUnavailable -> UnavailableContent(card, actions, compact)
+        is CardState.MemoryView -> MemoryContent(card, actions, compact)
+        is CardState.EditMemory -> EditMemoryContent(card, actions)
+        is CardState.AutoIntro -> AutoIntroContent(card, actions, compact)
         CardState.Hidden -> Unit
     }
 }
@@ -178,7 +221,7 @@ private fun CardContent(card: CardState, actions: CardActions, compact: Boolean)
 // --- States -----------------------------------------------------------------
 
 @Composable
-private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions) {
+private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions, compact: Boolean) {
     Column {
         CardHeader(
             label = card.label,
@@ -186,7 +229,9 @@ private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions) 
             icon = { VibeMark(mood = if (card.refreshing) MarkMood.Thinking else MarkMood.Arrived, arrivalKey = card.text) },
             trailing = { if (card.isPreview) PreviewTag() },
         )
-        AnimatedContent(
+        if (card.options.size > 1 && !card.autoInserted && !card.sent) {
+            OptionList(card, actions, compact)
+        } else AnimatedContent(
             targetState = card.text,
             transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) },
             label = "suggestion-text",
@@ -202,26 +247,94 @@ private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions) 
                     .graphicsLayer { alpha = if (card.refreshing) 0.45f else 1f },
             )
         }
+        if (card.note != null) {
+            Text(
+                card.note,
+                style = VibeType.CardQuote,
+                color = if (card.note.startsWith("Auto paused")) VibeColors.Context else VibeColors.TextTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = 8.dp, bottom = 8.dp),
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (card.autoInserted) {
-                GhostButton("Undo", onClick = actions::undoAutoInsert, icon = VibeIcons.Undo)
-                Spacer(Modifier.width(10.dp))
-                Text("Added to your message", style = VibeType.CardQuote, color = VibeColors.TextTertiary)
-            } else {
-                PrimaryButton("Use", onClick = actions::use, enabled = !card.refreshing)
+            when {
+                card.sent -> {
+                    SmallIcon(VibeIcons.Check, VibeColors.Accent)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Sent", style = VibeType.CardLabel, color = VibeColors.TextSecondary)
+                }
+                card.sendIn != null -> {
+                    PrimaryButton("Cancel", onClick = actions::cancelSend)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (card.sendIn > 0) "Sending in ${card.sendIn}…" else "Sending…",
+                        style = VibeType.CardQuote,
+                        color = VibeColors.Accent,
+                    )
+                }
+                card.autoInserted -> {
+                    GhostButton("Undo", onClick = actions::undoAutoInsert, icon = VibeIcons.Undo)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Added to your message", style = VibeType.CardQuote, color = VibeColors.TextTertiary)
+                }
+                else -> PrimaryButton("Use", onClick = actions::use, enabled = !card.refreshing)
             }
             Spacer(Modifier.weight(1f))
-            RoundIconButton(VibeIcons.Refresh, "New suggestion", onClick = actions::regenerate, enabled = !card.refreshing)
+            if (!card.sent && card.sendIn == null) {
+                RoundIconButton(VibeIcons.Refresh, "New suggestion", onClick = actions::regenerate, enabled = !card.refreshing)
+            }
         }
         if (card.refreshing) ShimmerLine(Modifier.padding(top = 8.dp, end = 8.dp))
     }
+}
+
+/**
+ * The model's options, one tap to pick. Short enough to read at a glance: two
+ * lines each. In landscape there is room for one, so a tap moves to the next.
+ */
+@Composable
+private fun OptionList(card: CardState.Suggestion, actions: CardActions, compact: Boolean) {
+    val dim = Modifier.graphicsLayer { alpha = if (card.refreshing) 0.45f else 1f }
+    Column(dim.padding(end = 8.dp, top = 2.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (compact) {
+            OptionRow(card.text, selected = true) { actions.selectOption((card.selected + 1) % card.options.size) }
+            Text(
+                "Option ${card.selected + 1} of ${card.options.size} · tap for the next",
+                style = VibeType.CardQuote,
+                color = VibeColors.TextTertiary,
+            )
+        } else {
+            card.options.forEachIndexed { i, option ->
+                OptionRow(option, selected = i == card.selected) { actions.selectOption(i) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionRow(text: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        text,
+        style = VibeType.CardBody,
+        color = if (selected) VibeColors.TextPrimary else VibeColors.TextSecondary,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) VibeColors.Accent.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.04f))
+            .border(1.dp, if (selected) VibeColors.Accent.copy(alpha = 0.45f) else Color.Transparent, RoundedCornerShape(12.dp))
+            .clickable(role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
 private fun ContextContent(card: CardState.ContextNeeded, actions: CardActions, compact: Boolean) {
     Column {
         CardHeader(
-            label = "Needs context",
+            label = card.signal.bellLabel,
             onDismiss = actions::dismiss,
             icon = { SmallIcon(VibeIcons.Bell, VibeColors.Context) },
         )
@@ -247,7 +360,7 @@ private fun ContextContent(card: CardState.ContextNeeded, actions: CardActions, 
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 8.dp),
             ) {
-                RememberToggle(card.remember, actions::toggleRemember)
+                RememberToggle(card.remember, card.rememberLabel, actions::toggleRemember)
                 Spacer(Modifier.weight(1f))
                 PrimaryButton("Continue", onClick = actions::submitContext, enabled = card.draft.isNotBlank())
                 Spacer(Modifier.width(8.dp))
@@ -260,12 +373,16 @@ private fun ContextContent(card: CardState.ContextNeeded, actions: CardActions, 
 private fun EndingContent(card: CardState.Ending, actions: CardActions) {
     Column {
         CardHeader(
-            label = if (card.isNight) "It's getting late" else "Winding down",
+            label = when {
+                card.isNight -> "It's getting late"
+                card.slowing -> "Slowing down"
+                else -> "Winding down"
+            },
             onDismiss = actions::dismiss,
             icon = { SmallIcon(VibeIcons.Moon, VibeColors.Night) },
         )
         Text(
-            "Conversation slowing down.",
+            if (card.slowing) "Their replies are getting shorter." else "Conversation slowing down.",
             style = VibeType.CardBody,
             color = VibeColors.TextPrimary,
             modifier = Modifier.padding(bottom = 10.dp),
@@ -350,7 +467,7 @@ private fun NoticeContent(card: CardState.Notice, actions: CardActions) {
 private fun FailedContent(card: CardState.Failed, actions: CardActions) {
     Column {
         CardHeader(
-            label = "Something went wrong",
+            label = card.title,
             onDismiss = actions::dismiss,
             icon = { VibeMark(tint = VibeColors.TextTertiary) },
         )
@@ -428,7 +545,7 @@ private fun SwipeToDismiss(onDismiss: () -> Unit, content: @Composable () -> Uni
 }
 
 @Composable
-private fun CardHeader(
+internal fun CardHeader(
     label: String,
     onDismiss: () -> Unit,
     icon: @Composable () -> Unit,
@@ -453,11 +570,11 @@ private fun CardHeader(
 }
 
 @Composable
-private fun SmallIcon(icon: ImageVector, tint: Color) =
+internal fun SmallIcon(icon: ImageVector, tint: Color) =
     Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
 
 @Composable
-private fun Quote(text: String, modifier: Modifier = Modifier) {
+internal fun Quote(text: String, modifier: Modifier = Modifier) {
     Text(
         "“${text.trim()}”",
         style = VibeType.CardQuote,
@@ -470,7 +587,7 @@ private fun Quote(text: String, modifier: Modifier = Modifier) {
 
 /** Mock output is labelled wherever it appears. */
 @Composable
-private fun PreviewTag() {
+internal fun PreviewTag() {
     Text(
         "PREVIEW",
         style = VibeType.Tag,
@@ -488,7 +605,7 @@ private fun PreviewTag() {
  * field would ask for a keyboard.
  */
 @Composable
-private fun ContextField(draft: String, modifier: Modifier = Modifier) {
+internal fun ContextField(draft: String, modifier: Modifier = Modifier, placeholder: String = "Type context…") {
     val caret = rememberInfiniteTransition(label = "caret")
     val caretAlpha by caret.animateFloat(
         initialValue = 1f,
@@ -515,7 +632,7 @@ private fun ContextField(draft: String, modifier: Modifier = Modifier) {
                     .background(VibeColors.Accent),
             )
             Spacer(Modifier.width(4.dp))
-            Text("Type context…", style = VibeType.CardQuote, color = VibeColors.TextTertiary)
+            Text(placeholder, style = VibeType.CardQuote, color = VibeColors.TextTertiary)
         } else {
             Text(
                 draft,
@@ -537,7 +654,7 @@ private fun ContextField(draft: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun RememberToggle(checked: Boolean, onToggle: () -> Unit) {
+internal fun RememberToggle(checked: Boolean, label: String, onToggle: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -557,12 +674,12 @@ private fun RememberToggle(checked: Boolean, onToggle: () -> Unit) {
             if (checked) Icon(VibeIcons.Check, null, tint = VibeColors.OnAccent, modifier = Modifier.size(14.dp))
         }
         Spacer(Modifier.width(8.dp))
-        Text("Remember for this chat", style = VibeType.CardQuote, color = VibeColors.TextSecondary)
+        Text(label, style = VibeType.CardQuote, color = VibeColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
-private fun ShimmerLine(modifier: Modifier = Modifier) {
+internal fun ShimmerLine(modifier: Modifier = Modifier) {
     val t = rememberInfiniteTransition(label = "shimmer")
     val x by t.animateFloat(
         initialValue = -0.4f,
@@ -590,14 +707,14 @@ private fun ShimmerLine(modifier: Modifier = Modifier) {
 
 /** Shrinks slightly while pressed: the only "bounce" Vibe allows itself. */
 @Composable
-private fun Modifier.pressScale(source: MutableInteractionSource): Modifier {
+internal fun Modifier.pressScale(source: MutableInteractionSource): Modifier {
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.95f else 1f, spring(stiffness = Spring.StiffnessHigh), label = "press")
     return graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
 @Composable
-private fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+internal fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val source = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.Center,
@@ -617,7 +734,7 @@ private fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier 
 }
 
 @Composable
-private fun GhostButton(
+internal fun GhostButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -643,7 +760,7 @@ private fun GhostButton(
 }
 
 @Composable
-private fun RoundIconButton(
+internal fun RoundIconButton(
     icon: ImageVector,
     description: String,
     onClick: () -> Unit,

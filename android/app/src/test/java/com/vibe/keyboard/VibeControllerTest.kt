@@ -6,6 +6,7 @@ import com.vibe.keyboard.ai.MockAIProvider
 import com.vibe.keyboard.ai.ReplyIntent
 import com.vibe.keyboard.ai.Suggestion
 import com.vibe.keyboard.ai.SuggestionRequest
+import com.vibe.keyboard.auto.AutoRulesConfig
 import com.vibe.keyboard.overlay.CardState
 import com.vibe.keyboard.overlay.FieldAction
 import com.vibe.keyboard.overlay.SessionMemory
@@ -106,7 +107,7 @@ class VibeControllerTest {
     @Test fun `tapping the mark with nothing copied explains how`() = runTest {
         val c = controller()
         c.onManualRequest(freshCopy = null)
-        assertEquals(CardState.Notice("Copy their message, then tap ✦"), c.card.value)
+        assertEquals(CardState.Notice("Copy their message, then tap Scan"), c.card.value)
         advanceUntilIdle()
         assertEquals(CardState.Hidden, c.card.value)
     }
@@ -202,6 +203,9 @@ class VibeControllerTest {
     @Test fun `auto reply fills an empty box and can be undone`() = runTest {
         val c = controller()
         c.autoReply = true
+        // This app has no Send action and no chat is picked: with the context rule
+        // relaxed, Auto may fill the box, and only that.
+        c.autoRules = AutoRulesConfig(onlyWithContext = false)
         c.fieldIsEmpty = { true }
         val actions = collectActions(c)
         c.onCopied("what are you doing?", automatic = true)
@@ -216,6 +220,7 @@ class VibeControllerTest {
     @Test fun `auto reply never writes over what the user started typing`() = runTest {
         val c = controller()
         c.autoReply = true
+        c.autoRules = AutoRulesConfig(onlyWithContext = false)
         c.fieldIsEmpty = { false }
         val actions = collectActions(c)
         c.onCopied("what are you doing?", automatic = true)

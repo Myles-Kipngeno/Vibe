@@ -67,6 +67,8 @@ def generate(
     contact_name: str | None,
     feedback: list[dict] | None = None,
     examples: list | None = None,
+    style_notes: str | None = None,
+    style_samples: list[str] | None = None,
 ) -> SuggestResponse:
     is_mock = provider.is_mock
     provider_name = provider.name
@@ -128,13 +130,15 @@ def generate(
         messages=messages,
         analysis=analysis,
         goal=goal,
-        style_text=style_brief(profile),
+        style_text=style_brief(profile)
+        + (f"\nMeasured on his phone from his own messages: {style_notes}" if style_notes else ""),
         their_style=observe_their_style(messages),
         supplied_context=supplied_context,
         memories=memories,
         avoid=avoid,
         feedback_text=feedback_signal.feedback_brief(signal),
         examples_text=example_library.examples_brief(chosen),
+        style_samples=style_samples or [],
         action=action,
         goodnight=goodnight,
     )
@@ -182,7 +186,7 @@ def generate(
     if is_mock:
         guidance = (
             "Offline mode: these are fixed templates, not model output. "
-            "Add ANTHROPIC_API_KEY to backend/.env for real suggestions. "
+            "Add a model key to backend/.env (a free GROQ_API_KEY works) for real suggestions. "
         ) + guidance
 
     return SuggestResponse(

@@ -70,6 +70,7 @@ def build_user_prompt(
     goodnight: bool,
     feedback_text: str = "",
     examples_text: str = "",
+    style_samples: list[str] | None = None,
 ) -> str:
     goal_label = CONVERSATION_GOALS.get(goal, goal)
 
@@ -101,6 +102,16 @@ def build_user_prompt(
         sections.append("## Questions still hanging\n" + unanswered)
 
     sections.append("## His texting style\n" + style_text)
+
+    if style_samples:
+        sections.append(
+            "## Messages he actually wrote\n"
+            + "\n".join(f"- {s}" for s in style_samples)
+            + "\nThis is his voice: match his spelling, his Sheng and slang, his "
+            "message length, his punctuation and his emoji habits. A reply should "
+            "read like the next line in this list. Do not reuse or adapt these "
+            "lines -- they answered other moments."
+        )
 
     if feedback_text:
         sections.append(

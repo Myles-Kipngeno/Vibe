@@ -74,6 +74,8 @@ object VibeIcons {
 
     val ChevronDown: ImageVector by lazy { stroked("ChevronDown", "M6,9.5L12,15.5L18,9.5") }
 
+    val ChevronLeft: ImageVector by lazy { stroked("ChevronLeft", "M14.5,6L8.5,12L14.5,18") }
+
     val Tune: ImageVector by lazy {
         stroked("Tune", "M4,7H14M18,7H20M4,17H6M10,17H20M16,4.5V9.5M8,14.5V19.5")
     }

@@ -1,6 +1,8 @@
 package com.vibe.keyboard.ai
 
 import com.vibe.keyboard.engine.ContextDetector
+import com.vibe.keyboard.memory.MemorySource
+import com.vibe.keyboard.memory.UserStyleProfile
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -25,19 +27,37 @@ class MockAIProvider(
         if (latencyMs.last > 0) delay(random.nextLong(latencyMs.first, latencyMs.last + 1))
 
         val theirs = request.conversation.lastFromThem?.text.orEmpty()
-        val sheng = leansSheng(theirs)
+        val style = request.reply.userStyle?.takeIf { it.hasLearned }
+        // Their language first; a user who writes mostly Sheng leans that way anyway.
+        val sheng = leansSheng(theirs) || (style != null && style.shengRatio >= 0.45)
 
-        val candidates = if (request.context.isNotEmpty() && request.intent == ReplyIntent.REPLY) {
-            withContext(request.context.values.last(), sheng)
+        // What the user told Vibe: this time, or before, about someone they just mentioned.
+        val told = request.context.values.lastOrNull() ?: relevantNote(request, theirs)
+
+        val candidates = if (told != null && request.intent == ReplyIntent.REPLY) {
+            withContext(told, sheng)
         } else {
-            templatesFor(request.intent, theirs, sheng)
+            templatesFor(request.intent, theirs, sheng, request.reply)
         }
 
         val avoid = request.avoid.map { it.lowercase() }.toSet()
         val text = candidates.firstOrNull { it.lowercase() !in avoid }
             ?: candidates.filter { it != request.avoid.lastOrNull() }.randomOrNull(random)
             ?: candidates.first()
-        return Suggestion(text, isPreview = true)
+        return Suggestion(inUserStyle(text, style), isPreview = true)
+    }
+
+    /** A note the user saved earlier about a person named in this message. */
+    private fun relevantNote(request: SuggestionRequest, theirs: String): String? {
+        val names = ContextDetector.candidateNames(theirs).map { "person:${it.lowercase()}" }.toSet()
+        return request.reply.memories.firstOrNull { it.source == MemorySource.USER && it.key in names }?.value
+    }
+
+    /** Someone who hardly uses emojis should not get a suggestion full of them. */
+    private fun inUserStyle(text: String, style: UserStyleProfile?): String {
+        if (style == null || style.emojiRate >= 0.1) return text
+        val stripped = text.filterNot { Character.isSurrogate(it) || it == '‍' || it == '️' }
+        return stripped.replace(Regex("""\s+"""), " ").trim().ifEmpty { text }
     }
 
     private fun withContext(answer: String, sheng: Boolean): List<String> {
@@ -53,7 +73,7 @@ class MockAIProvider(
         }
     }
 
-    private fun templatesFor(intent: ReplyIntent, theirs: String, sheng: Boolean): List<String> {
+    private fun templatesFor(intent: ReplyIntent, theirs: String, sheng: Boolean, reply: ReplyContext): List<String> {
         val norm = ContextDetector.normalize(theirs)
         val laughing = listOf("😂", "🤣", "haha", "hahaha", "lol", "lmao").any { theirs.lowercase().contains(it) }
         val tired = listOf("long day", "tired", "nimechoka", "exhausted", "just got home", "nimefika").any { norm.contains(it) }
@@ -73,7 +93,7 @@ class MockAIProvider(
                     en = listOf("Wait, for real? 👀", "No way 😂 then what happened?", "Haha okay tell me more"),
                     sh = listOf("Aki for real? 👀", "Wueh 😂 kisha ikawaje?", "Haha sema zaidi"))
             }
-            ReplyIntent.CONTINUE -> pick(sheng,
+            ReplyIntent.CONTINUE -> continueFrom(reply, sheng) + pick(sheng,
                 en = listOf("Okay but you never finished that story 👀", "Wait, so how did the rest of your day go?", "Before I forget, what are you up to tomorrow?"),
                 sh = listOf("Sawa lakini hukumaliza hiyo story 👀", "Kwani siku yako iliishaje?", "Kabla nisahau, kesho uko na plans gani?"))
             ReplyIntent.WRAP_UP -> pick(sheng,
@@ -85,10 +105,22 @@ class MockAIProvider(
             ReplyIntent.PICTURE_REPLY -> pick(sheng,
                 en = listOf("Haha earn it first 😏", "😂 Nice try. Maybe later", "You'll see me soon enough 😌"),
                 sh = listOf("Haha pata kwanza 😏", "😂 Nice try, baadaye", "Utaniona tu soon 😌"))
+            ReplyIntent.MORNING -> pick(sheng,
+                en = listOf("Morning 😊 hope you slept well", "Good morning 😊 how did you sleep?", "Morning! Ready for today? 😊"),
+                sh = listOf("Morning 😊 ulilala poa?", "Habari ya asubuhi 😊 umeamkaje?", "Morning! Uko ready na leo? 😊"))
             ReplyIntent.BOUNDARY_EXIT -> pick(sheng,
                 en = listOf("Understood, I'll give you space. Take care 🙏", "Got it, sorry if I pushed. Take care", "No worries, all the best 🙏"),
                 sh = listOf("Sawa, nimeelewa. Take care 🙏", "Nimekuskia, sorry kama nilipush. Take care", "Poa, kila la heri 🙏"))
         }
+    }
+
+    /**
+     * A reason to keep going that comes from this conversation: something that
+     * keeps coming up in it. With nothing to draw on, the generic lines follow.
+     */
+    private fun continueFrom(reply: ReplyContext, sheng: Boolean): List<String> {
+        val topic = reply.summary?.topics?.firstOrNull() ?: return emptyList()
+        return if (sheng) listOf("Sawa lakini tuongelee $topic kidogo 👀") else listOf("Okay but back to $topic for a sec 👀")
     }
 
     private val lowercaseOpeners = setOf(

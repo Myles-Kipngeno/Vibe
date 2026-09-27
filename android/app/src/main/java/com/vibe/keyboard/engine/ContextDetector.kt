@@ -20,17 +20,55 @@ object ContextDetector {
         if (Lexicon.boundaryPhrases.any { norm.containsPhrase(it) }) {
             return VibeSignal.Boundary(text)
         }
+        sensitiveRequest(text, norm)?.let { return it }
         if (Lexicon.pictureRequestPhrases.any { norm.containsPhrase(it) }) {
             return VibeSignal.PictureRequest(text)
         }
 
         missingContext(text, norm)?.let { if (it.key !in knownKeys) return it }
 
-        if (Lexicon.windDownPhrases.any { norm.containsPhrase(it) }) {
-            return VibeSignal.Ending(isNight = hourOfDay >= 21 || hourOfDay < 4)
+        if (Lexicon.distressPhrases.any { norm.containsPhrase(it) }) {
+            return VibeSignal.Emotional(text)
         }
 
+        if (Lexicon.windDownPhrases.any { norm.containsPhrase(it) }) {
+            return VibeSignal.Ending(isNight = isNight(hourOfDay))
+        }
+
+        ambiguous(text, norm)?.let { if (it.key !in knownKeys) return it }
+
         return if (isWorthReplyingTo(text, norm)) VibeSignal.Reply else VibeSignal.Quiet
+    }
+
+    fun isNight(hourOfDay: Int) = hourOfDay >= 21 || hourOfDay < 4
+
+    /**
+     * A PIN, a password, money. A bare keyword is not enough ("pin the
+     * location"); it has to come with a question or an ask.
+     */
+    private fun sensitiveRequest(text: String, norm: String): VibeSignal.SensitiveRequest? {
+        val hit = Lexicon.sensitiveRequests.firstOrNull { (phrase, _) -> norm.containsPhrase(phrase) } ?: return null
+        val asking = '?' in text || sensitiveAskWords.any { norm.containsPhrase(it) }
+        return if (asking) VibeSignal.SensitiveRequest(text, hit.second) else null
+    }
+
+    private val sensitiveAskWords = listOf(
+        "send", "share", "give", "tell me", "whats", "what is", "your", "yako", "nitumie", "tuma", "nipe",
+    )
+
+    /** "We'll see", "labda", "sijui": short, and could mean two opposite things. */
+    private fun ambiguous(text: String, norm: String): VibeSignal.NeedsContext? {
+        if (norm.split(' ').size > 6) return null
+        val phrase = Lexicon.ambiguousPhrases.firstOrNull { norm.containsPhrase(it) } ?: return null
+        return VibeSignal.NeedsContext(
+            subject = phrase,
+            headline = "Vibe isn't sure what they mean.",
+            quote = text,
+            question = "What do you think they mean by this?",
+            key = "ambiguous:$norm",
+            rememberByDefault = false,
+            bellLabel = "Not sure",
+        )
     }
 
     /** One gap per message, never three: a named person beats a vague event. */
@@ -80,7 +118,8 @@ object ContextDetector {
         tokens.forEachIndexed { i, match ->
             val token = match.value
             val low = token.lowercase().trim('\'', '-')
-            if (low.length < 3 || Lexicon.isNotAName(low)) return@forEachIndexed
+            // "I'm", "I'll", "Don't": a contraction is never a name.
+            if (low.length < 3 || '\'' in low || Lexicon.isNotAName(low)) return@forEachIndexed
 
             val before = text.substring(0, match.range.first).trimEnd()
             val startsSentence = before.isEmpty() || before.last() in ".!?\n"
@@ -103,7 +142,7 @@ object ContextDetector {
         return '?' in text || words.size >= 3
     }
 
-    internal fun normalize(text: String): String =
+    fun normalize(text: String): String =
         text.lowercase()
             .replace("’", "'")
             .replace("'", "")

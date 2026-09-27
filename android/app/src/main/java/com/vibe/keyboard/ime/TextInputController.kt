@@ -5,6 +5,7 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import com.vibe.keyboard.keyboard.EnterAction
+import com.vibe.keyboard.keyboard.KeyboardState
 
 /** Everything Vibe does to the app's text field goes through here. */
 class TextInputController(private val connection: () -> InputConnection?) {
@@ -60,6 +61,27 @@ class TextInputController(private val connection: () -> InputConnection?) {
         if (!before.endsWith(text)) return
         val extraSpace = if (before.length > text.length && before[before.length - text.length - 1] == ' ') 1 else 0
         ic.deleteSurroundingText(text.length + extraSpace, 0)
+    }
+
+    /** The message box's text around the cursor: the user's draft, and nothing else in the app. */
+    fun fieldText(): String {
+        val ic = connection() ?: return ""
+        val before = ic.getTextBeforeCursor(1_000, 0)?.toString().orEmpty()
+        val after = ic.getTextAfterCursor(1_000, 0)?.toString().orEmpty()
+        return before + after
+    }
+
+    /**
+     * Presses the field's Send action, only if the field declares one and still
+     * ends with exactly [text] -- if the user has changed it, it is theirs now.
+     * Returns whether the action was performed; whether the app sent is checked after.
+     */
+    fun sendIfStill(text: String, info: EditorInfo?): Boolean {
+        val ic = connection() ?: return false
+        if (info == null || KeyboardState.enterActionFor(info) != EnterAction.SEND) return false
+        val before = ic.getTextBeforeCursor(text.length + 1, 0)?.toString() ?: return false
+        if (!before.endsWith(text) || !ic.getTextAfterCursor(1, 0).isNullOrEmpty()) return false
+        return ic.performEditorAction(EditorInfo.IME_ACTION_SEND)
     }
 
     fun isFieldEmpty(): Boolean {

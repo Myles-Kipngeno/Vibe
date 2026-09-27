@@ -92,7 +92,8 @@ def health() -> HealthResponse:
     if provider.is_mock:
         notes.append(
             "Running in offline mode. Suggestions are fixed templates, not model "
-            "output. Set ANTHROPIC_API_KEY in backend/.env to enable real generation."
+            "output. Add a model key to backend/.env (a free GROQ_API_KEY works) to "
+            "enable real generation."
         )
     notes.append(
         "Conversation analysis and context alerts are computed locally and do not "

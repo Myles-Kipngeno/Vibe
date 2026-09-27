@@ -23,7 +23,9 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.vibe.keyboard.keyboard.KeyboardActions
+import com.vibe.keyboard.context.ScanState
 import com.vibe.keyboard.keyboard.KeyboardState
+import com.vibe.keyboard.keyboard.ToolbarState
 import com.vibe.keyboard.keyboard.VibeButtonState
 import com.vibe.keyboard.keyboard.VibeKeyboard
 import com.vibe.keyboard.overlay.CardState
@@ -47,6 +49,7 @@ fun ImeRoot(
     onVisibleTop: (Int) -> Unit,
 ) {
     val card by controller.card.collectAsState()
+    val status by controller.status.collectAsState()
     val cardActions = remember(controller) { controller.asCardActions() }
     val config = LocalConfiguration.current
     val landscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -83,13 +86,14 @@ fun ImeRoot(
             VibeKeyboard(
                 state = keyboard,
                 vibeButton = when {
-                    card is CardState.Thinking -> VibeButtonState.Thinking
+                    card is CardState.Thinking || status.scanState == ScanState.SCANNING -> VibeButtonState.Thinking
                     (card as? CardState.Suggestion)?.refreshing == true -> VibeButtonState.Thinking
                     card == CardState.Hidden -> VibeButtonState.Idle
                     else -> VibeButtonState.Active
                 },
-                capturingForVibe = (card as? CardState.ContextNeeded)?.expanded == true,
+                capturingForVibe = controller.isCapturingKeys,
                 actions = actions,
+                toolbar = ToolbarState(status.conversationName, status.scanState, status.mode),
             )
         }
     }

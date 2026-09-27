@@ -33,7 +33,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,16 +51,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.vibe.keyboard.memory.VibeData
+import com.vibe.keyboard.remote.Connection
+import com.vibe.keyboard.remote.DataStoreConnectionStore
 import com.vibe.keyboard.overlay.SessionMemory
 import com.vibe.keyboard.settings.VibePreferences
 import com.vibe.keyboard.settings.VibeSettings
 import com.vibe.keyboard.ui.VibeIcons
 import com.vibe.keyboard.ui.VibeMark
 import com.vibe.keyboard.ui.theme.VibeColors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
-fun HomeScreen(onPractice: () -> Unit) {
+fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Unit, onConnect: () -> Unit) {
     val context = LocalContext.current
     val settings = remember { VibeSettings(context) }
     val prefs by settings.preferences.collectAsState(initial = VibePreferences())
@@ -88,7 +92,9 @@ fun HomeScreen(onPractice: () -> Unit) {
         selected = isVibeSelected(context)
     }
 
-    var remembered by remember { mutableIntStateOf(SessionMemory.size()) }
+    val connection by remember { DataStoreConnectionStore(context) }.connection.collectAsState(initial = Connection())
+    var confirmWipe by remember { mutableStateOf(false) }
+    var wiped by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(VibeColors.Background), contentAlignment = Alignment.TopCenter) {
         Column(
@@ -133,45 +139,103 @@ fun HomeScreen(onPractice: () -> Unit) {
                     checked = prefs.suggestOnCopy,
                 ) { scope.launch { settings.setSuggestOnCopy(it) } }
                 Divider()
-                ToggleRow(
-                    title = "Auto Reply",
-                    detail = if (prefs.autoReply) {
-                        "On: Vibe puts its suggestion in the message box for you. You still press Send."
-                    } else {
-                        "Off: Vibe suggests, you decide what goes in the box."
-                    },
-                    checked = prefs.autoReply,
-                ) { scope.launch { settings.setAutoReply(it) } }
-                Text(
-                    "Vibe never sends a message or a photo for you. No messaging app lets a keyboard press Send, and Vibe won't pretend otherwise.",
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    color = VibeColors.TextTertiary,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
-                )
-                Divider()
                 ToggleRow(title = "Haptic feedback", detail = null, checked = prefs.haptics) {
                     scope.launch { settings.setHaptics(it) }
                 }
             }
 
+            Section("AI replies") {
+                Text(
+                    if (connection.isReady && !connection.serverIsMock) "Connected · ${connection.modelLabel}. Up to three options per reply."
+                    else "Connect to your Vibe server for real, varied replies instead of the built-in templates.",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = VibeColors.TextSecondary,
+                )
+                PillButton(if (connection.isConfigured) "Manage connection" else "Connect", filled = !connection.isConfigured, modifier = Modifier.padding(top = 12.dp), onClick = onConnect)
+            }
+
+            Section("Memory") {
+                Text(
+                    "Vibe keeps separate memory for each chat you pick: a summary, the people and places that come up, and what you've told it. Sarah's never reaches Jane's.",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = VibeColors.TextSecondary,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 12.dp)) {
+                    PillButton("Import a chat", filled = true, onClick = onImport)
+                    PillButton("See memory", filled = false, onClick = onMemory)
+                }
+            }
+
+            Section("Reply mode") {
+                ToggleRow(
+                    title = "Auto",
+                    detail = if (prefs.autoReply) {
+                        "On. When every rule below passes, Vibe fills the box, and presses Send where the app allows it, after a countdown you can cancel."
+                    } else {
+                        "Off: Suggest mode. Vibe suggests; you choose what goes in the box and you press Send."
+                    },
+                    checked = prefs.autoReply,
+                ) { scope.launch { settings.setAutoReply(it) } }
+                Divider()
+                ToggleRow(
+                    title = "Only with this chat's context",
+                    detail = "Auto waits for you until the chat has been scanned or imported.",
+                    checked = prefs.autoRules.onlyWithContext,
+                ) { scope.launch { settings.setAutoOnlyWithContext(it) } }
+                ToggleRow(
+                    title = "Only casual messages",
+                    detail = "Long or heavy messages always wait for you.",
+                    checked = prefs.autoRules.onlyCasual,
+                ) { scope.launch { settings.setAutoOnlyCasual(it) } }
+                ToggleRow(
+                    title = "Press Send where the app allows",
+                    detail = "Only in message boxes with a Send action (e.g. WhatsApp or Telegram with “Enter is send” on). Elsewhere Auto fills the box and you send.",
+                    checked = prefs.autoRules.sendWhereSupported,
+                ) { scope.launch { settings.setAutoSend(it) } }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+                    Text("Countdown", fontSize = 15.sp, color = VibeColors.TextPrimary, modifier = Modifier.weight(1f))
+                    for (sec in listOf(3, 5, 10)) {
+                        PillButton("${sec}s", filled = prefs.autoRules.sendDelaySeconds == sec, modifier = Modifier.padding(start = 6.dp)) {
+                            scope.launch { settings.setAutoDelay(sec) }
+                        }
+                    }
+                }
+                Text(
+                    "Never automatic, whatever the settings: photos, private details (PINs, passwords, money, ID numbers), messages that need context Vibe doesn't have, boundaries, and anything it isn't sure about.",
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = VibeColors.TextTertiary,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
+                )
+            }
+
             Section("Privacy") {
-                PrivacyLine("Runs on this phone. This version has no internet access at all.")
-                PrivacyLine("Reads a message only when you copy it. It can't see your chats.")
+                PrivacyLine("Runs on this phone until you connect it to your own server. Then only a suggestion request is sent, and only there.")
+                PrivacyLine("A keyboard can't see your chats. Vibe reads what you copy, what you import, and the message box, and only when you ask.")
                 PrivacyLine("Switches off in password and incognito fields.")
-                PrivacyLine("Context you give it stays in memory for the current chat and is forgotten when you switch apps.")
+                PrivacyLine("Chat memory is stored on this phone, excluded from backups, and kept per chat. Forget any of it any time.")
                 Spacer(Modifier.height(8.dp))
-                PillButton(
-                    text = if (remembered > 0) "Forget chat context ($remembered)" else "Forget chat context",
-                    filled = false,
-                ) {
-                    SessionMemory.clear()
-                    remembered = 0
+                if (confirmWipe) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PillButton("Delete everything", filled = true) {
+                            scope.launch {
+                                withContext(Dispatchers.IO) { VibeData.store(context).deleteAll() }
+                                SessionMemory.clear()
+                                confirmWipe = false
+                                wiped = true
+                            }
+                        }
+                        PillButton("Keep", filled = false) { confirmWipe = false }
+                    }
+                } else {
+                    PillButton(if (wiped) "Deleted" else "Delete all chats and memory", filled = false, enabled = !wiped) { confirmWipe = true }
                 }
             }
 
             Text(
-                "Preview build. Suggestions come from built-in templates, not an AI model yet, and are labelled PREVIEW.",
+                "Without a connected server, suggestions come from built-in templates and are labelled PREVIEW.",
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
                 color = VibeColors.TextTertiary,
@@ -243,7 +307,7 @@ private fun TryItCard(onPractice: () -> Unit) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -297,7 +361,7 @@ private fun SetupStep(
 }
 
 @Composable
-private fun ToggleRow(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun ToggleRow(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -326,12 +390,12 @@ private fun ToggleRow(title: String, detail: String?, checked: Boolean, onChange
 }
 
 @Composable
-private fun Divider() {
+internal fun Divider() {
     Box(Modifier.fillMaxWidth().height(1.dp).background(VibeColors.CardBorder))
 }
 
 @Composable
-private fun PrivacyLine(text: String) {
+internal fun PrivacyLine(text: String) {
     Row(Modifier.padding(vertical = 5.dp)) {
         Box(
             Modifier

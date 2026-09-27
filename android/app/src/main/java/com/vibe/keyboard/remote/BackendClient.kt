@@ -19,13 +19,21 @@ interface HttpTransport {
 
 data class HttpResult(val status: Int, val body: String)
 
-class UrlConnectionTransport(private val timeoutMs: Int = 20_000) : HttpTransport {
+/**
+ * Reading waits up to a minute: a free Render service sleeps after 15 idle
+ * minutes and takes about 50 seconds to answer its first request. Connecting
+ * stays short, so an unreachable server still fails fast to the templates.
+ */
+class UrlConnectionTransport(
+    private val connectTimeoutMs: Int = 15_000,
+    private val readTimeoutMs: Int = 60_000,
+) : HttpTransport {
     override fun send(method: String, url: String, headers: Map<String, String>, body: String?): HttpResult {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = method
-            conn.connectTimeout = timeoutMs
-            conn.readTimeout = timeoutMs
+            conn.connectTimeout = connectTimeoutMs
+            conn.readTimeout = readTimeoutMs
             headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
             if (body != null) {
                 conn.doOutput = true

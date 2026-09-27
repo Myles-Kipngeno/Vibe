@@ -69,7 +69,17 @@ class Settings:
     anthropic_api_key: str | None = field(
         default_factory=lambda: os.getenv("ANTHROPIC_API_KEY") or None
     )
-    model: str = field(default_factory=lambda: os.getenv("AI_MODEL", "claude-opus-5"))
+    # Empty means "the provider's default model" (see providers/openai_compatible.PRESETS).
+    model_override: str | None = field(default_factory=lambda: (os.getenv("AI_MODEL") or "").strip() or None)
+    # One key for whichever OpenAI-compatible provider is chosen. The named
+    # variables are accepted too, so a key can be pasted under its own name.
+    ai_api_key: str | None = field(
+        default_factory=lambda: next(
+            (v for k in ("AI_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY") if (v := (os.getenv(k) or "").strip())),
+            None,
+        )
+    )
+    ai_base_url: str | None = field(default_factory=lambda: (os.getenv("AI_BASE_URL") or "").strip() or None)
     max_tokens: int = field(default_factory=lambda: int(os.getenv("AI_MAX_TOKENS", "4000")))
     data_dir: Path = field(
         default_factory=lambda: Path(os.getenv("DATA_DIR", str(BACKEND_DIR / "data")))
@@ -142,10 +152,25 @@ class Settings:
 
     @property
     def resolved_provider(self) -> str:
-        """`auto` picks Claude when a key is present, otherwise the offline mock."""
+        """`auto`: a free-tier provider whose key is set, else Claude with a key, else the offline mock."""
         if self.provider != "auto":
             return self.provider
-        return "anthropic" if self.anthropic_api_key else "mock"
+        for name, var in (("groq", "GROQ_API_KEY"), ("gemini", "GEMINI_API_KEY"), ("openrouter", "OPENROUTER_API_KEY")):
+            if (os.getenv(var) or "").strip():
+                return name
+        if self.anthropic_api_key and self.anthropic_api_key.startswith("sk-ant-"):
+            return "anthropic"
+        return "mock"
+
+    @property
+    def model(self) -> str:
+        if self.model_override:
+            return self.model_override
+        if self.resolved_provider == "anthropic":
+            return "claude-opus-5"
+        from .providers.openai_compatible import PRESETS
+
+        return PRESETS.get(self.resolved_provider, ("", ""))[1]
 
 
 def exposure_error(settings: "Settings") -> str:

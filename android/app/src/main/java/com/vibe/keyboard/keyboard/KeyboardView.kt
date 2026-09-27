@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -50,12 +52,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vibe.keyboard.auto.ReplyMode
+import com.vibe.keyboard.context.ScanState
 import com.vibe.keyboard.ui.MarkMood
 import com.vibe.keyboard.ui.VibeIcons
 import com.vibe.keyboard.ui.VibeMark
@@ -70,7 +76,10 @@ interface KeyboardActions {
     fun onEnter()
     fun onShift()
     fun onMode(mode: KeyboardMode)
+    /** ✦: open the Vibe panel. */
     fun onVibeTap()
+    fun onScan()
+    fun onToggleMode()
     fun onSpaceLongPress()
     fun onHide()
     fun onOpenSettings()
@@ -79,6 +88,13 @@ interface KeyboardActions {
 /** How the ✦ button looks, which mirrors what the card is doing. */
 enum class VibeButtonState { Idle, Thinking, Active }
 
+/** What the toolbar shows about Vibe: which chat, how much context, which mode. */
+data class ToolbarState(
+    val conversationName: String? = null,
+    val scanState: ScanState = ScanState.NOT_SCANNED,
+    val mode: ReplyMode = ReplyMode.SUGGEST,
+)
+
 @Composable
 fun VibeKeyboard(
     state: KeyboardState,
@@ -86,12 +102,13 @@ fun VibeKeyboard(
     capturingForVibe: Boolean,
     actions: KeyboardActions,
     modifier: Modifier = Modifier,
+    toolbar: ToolbarState = ToolbarState(),
 ) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val keyHeight = if (landscape) 40.dp else 50.dp
 
     Column(modifier.fillMaxWidth().background(VibeColors.KeyboardBg).padding(horizontal = 3.dp)) {
-        Toolbar(state, vibeButton, capturingForVibe, actions)
+        Toolbar(state, vibeButton, capturingForVibe, toolbar, actions)
         when (state.mode) {
             KeyboardMode.LETTERS -> LetterRows(state, keyHeight, actions)
             KeyboardMode.SYMBOLS -> SymbolRows(state, keyHeight, actions)
@@ -106,39 +123,83 @@ private fun Toolbar(
     state: KeyboardState,
     vibeButton: VibeButtonState,
     capturing: Boolean,
+    toolbar: ToolbarState,
     actions: KeyboardActions,
 ) {
+    var more by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp),
     ) {
-        VibeButton(state.vibeAllowed, vibeButton, state.haptics, actions::onVibeTap)
-        Spacer(Modifier.width(10.dp))
-        AnimatedVisibility(capturing, enter = fadeIn(), exit = fadeOut()) {
-            Text("Typing to Vibe · not sent", style = VibeType.CardQuote, color = VibeColors.Accent)
+        if (more) {
+            // The extra controls take the toolbar's place, so the keyboard never changes height.
+            ToolbarIcon(VibeIcons.ChevronLeft, "Back", state.haptics) { more = false }
+            Spacer(Modifier.width(4.dp))
+            ToolbarPill("Settings", state.haptics, onTap = actions::onOpenSettings)
+            Spacer(Modifier.width(6.dp))
+            ToolbarPill("Switch keyboard", state.haptics, onTap = actions::onSpaceLongPress)
+            Spacer(Modifier.weight(1f))
+            ToolbarIcon(VibeIcons.ChevronDown, "Hide keyboard", state.haptics) {
+                more = false
+                actions.onHide()
+            }
+            return@Row
         }
-        if (!state.vibeAllowed) {
-            Text("Vibe is off in private fields", style = VibeType.CardQuote, color = VibeColors.TextTertiary)
+
+        VibeButton(state.vibeAllowed, vibeButton, state.haptics, toolbar, actions::onVibeTap)
+        Spacer(Modifier.width(8.dp))
+        when {
+            capturing -> AnimatedVisibility(true, enter = fadeIn(), exit = fadeOut()) {
+                Text("Typing to Vibe · not sent", style = VibeType.CardQuote, color = VibeColors.Accent)
+            }
+            !state.vibeAllowed -> Text("Vibe is off in private fields", style = VibeType.CardQuote, color = VibeColors.TextTertiary)
+            else -> {
+                ToolbarPill("Scan", state.haptics, onTap = actions::onScan)
+                Spacer(Modifier.width(6.dp))
+                ToolbarPill(
+                    if (toolbar.mode == ReplyMode.AUTO) "Auto" else "Suggest",
+                    state.haptics,
+                    highlighted = toolbar.mode == ReplyMode.AUTO,
+                    onTap = actions::onToggleMode,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
-        if (state.autoReply && state.vibeAllowed) {
-            Text(
-                "AUTO",
-                style = VibeType.Tag,
-                color = VibeColors.Accent,
-                modifier = Modifier
-                    .border(1.dp, VibeColors.Accent.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+        ToolbarIcon(VibeIcons.ChevronDown, "More controls", state.haptics) { more = true }
+    }
+}
+
+/** A compact text control in the toolbar. Taps like a key: haptic on press, fires on release. */
+@Composable
+private fun ToolbarPill(text: String, haptics: Boolean, highlighted: Boolean = false, onTap: () -> Unit) {
+    val view = LocalView.current
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .height(32.dp)
+            .clip(CircleShape)
+            .background(if (highlighted) VibeColors.Accent.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
+            .then(
+                if (highlighted) Modifier.border(1.dp, VibeColors.Accent.copy(alpha = 0.45f), CircleShape) else Modifier,
             )
-            Spacer(Modifier.width(4.dp))
-        }
-        ToolbarIcon(VibeIcons.Tune, "Vibe settings", state.haptics, actions::onOpenSettings)
-        ToolbarIcon(VibeIcons.ChevronDown, "Hide keyboard", state.haptics, actions::onHide)
+            .clickable(role = Role.Button) {
+                if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                onTap()
+            }
+            .padding(horizontal = 14.dp),
+    ) {
+        Text(text, style = VibeType.KeySmall, color = if (highlighted) VibeColors.Accent else VibeColors.TextSecondary)
     }
 }
 
 @Composable
-private fun VibeButton(enabled: Boolean, state: VibeButtonState, haptics: Boolean, onTap: () -> Unit) {
+private fun VibeButton(
+    enabled: Boolean,
+    state: VibeButtonState,
+    haptics: Boolean,
+    toolbar: ToolbarState,
+    onTap: () -> Unit,
+) {
     val bg by animateColorAsState(
         when {
             !enabled -> Color.Transparent
@@ -148,8 +209,15 @@ private fun VibeButton(enabled: Boolean, state: VibeButtonState, haptics: Boolea
         tween(200),
         label = "vibe-button",
     )
+    val label = toolbar.conversationName ?: "Vibe"
+    val dot = when (toolbar.scanState) {
+        ScanState.CONTEXT_READY -> VibeColors.Accent
+        ScanState.CONTEXT_STALE, ScanState.IMPORT_REQUIRED, ScanState.CONTEXT_UNAVAILABLE -> VibeColors.Context
+        ScanState.ERROR -> VibeColors.Boundary
+        else -> null
+    }
     KeyBox(
-        modifier = Modifier.size(36.dp),
+        modifier = Modifier.height(36.dp).widthIn(min = 36.dp, max = 132.dp),
         color = bg,
         pressedColor = VibeColors.Accent.copy(alpha = 0.30f),
         shape = CircleShape,
@@ -157,13 +225,28 @@ private fun VibeButton(enabled: Boolean, state: VibeButtonState, haptics: Boolea
         enabled = enabled,
         onTap = onTap,
         padding = 0.dp,
-        description = "Ask Vibe",
+        description = "Vibe controls, $label",
+        fill = false,
     ) {
-        VibeMark(
-            size = 17.dp,
-            tint = if (enabled) VibeColors.Accent else VibeColors.TextTertiary,
-            mood = if (state == VibeButtonState.Thinking) MarkMood.Thinking else MarkMood.Idle,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp, end = 12.dp)) {
+            VibeMark(
+                size = 17.dp,
+                tint = if (enabled) VibeColors.Accent else VibeColors.TextTertiary,
+                mood = if (state == VibeButtonState.Thinking) MarkMood.Thinking else MarkMood.Idle,
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                label,
+                style = VibeType.KeySmall,
+                color = if (enabled) VibeColors.TextPrimary else VibeColors.TextTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (dot != null && enabled) {
+                Spacer(Modifier.width(6.dp))
+                Box(Modifier.size(6.dp).clip(CircleShape).background(dot))
+            }
+        }
     }
 }
 
@@ -390,6 +473,7 @@ private fun KeyBox(
     description: String,
     onTap: () -> Unit,
     onLongPress: (() -> Unit)? = null,
+    fill: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     var pressed by remember { mutableStateOf(false) }
@@ -441,6 +525,6 @@ private fun KeyBox(
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+        Box(if (fill) Modifier.fillMaxSize() else Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) { content() }
     }
 }

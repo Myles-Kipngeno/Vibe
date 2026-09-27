@@ -3,4 +3,5 @@
     <string name="app_name">Vibe</string>
     <string name="ime_name">Vibe Keyboard</string>
     <string name="ime_subtype">English + Sheng</string>
+    <string name="import_label">Import chat to Vibe</string>
 </resources>

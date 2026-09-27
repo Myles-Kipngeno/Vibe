@@ -48,8 +48,13 @@ services:
       - key: CORS_ORIGINS
         sync: false
 
-      # Optional. Without it the app runs in offline mode: analysis and the
-      # gates are real, reply text comes from templates, and the UI says so.
+      # The model key. Without one the app runs in offline mode: analysis and
+      # the gates are real, reply text comes from templates, and the UI says so.
+      # A free Groq key is enough; AI_PROVIDER=auto picks whichever is set.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: AI_PROVIDER

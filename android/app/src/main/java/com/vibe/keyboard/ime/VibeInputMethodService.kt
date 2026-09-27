@@ -20,15 +20,22 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.vibe.keyboard.ai.MockAIProvider
 import com.vibe.keyboard.app.MainActivity
+import com.vibe.keyboard.keyboard.EnterAction
 import com.vibe.keyboard.keyboard.KeyboardActions
 import com.vibe.keyboard.keyboard.KeyboardMode
 import com.vibe.keyboard.keyboard.KeyboardState
 import com.vibe.keyboard.overlay.CardState
 import com.vibe.keyboard.overlay.FieldAction
+import com.vibe.keyboard.overlay.VibeCommand
 import com.vibe.keyboard.overlay.VibeController
+import com.vibe.keyboard.memory.VibeData
+import com.vibe.keyboard.remote.DataStoreConnectionStore
+import com.vibe.keyboard.remote.RemoteAIProvider
 import com.vibe.keyboard.settings.VibePreferences
 import com.vibe.keyboard.settings.VibeSettings
 import com.vibe.keyboard.ui.theme.VibeTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -49,10 +56,10 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
     private lateinit var controller: VibeController
     private lateinit var clipboard: ClipboardSource
     private var prefs = VibePreferences()
+    private val settings by lazy { VibeSettings(this) }
 
     private var inputRoot: View? = null
     private var visibleTopPx = 0
-    private var lastPackage: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -60,19 +67,29 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
 
         input = TextInputController { currentInputConnection }
-        // MOCK: swap for RemoteAIProvider once the backend call is wired in.
-        controller = VibeController(lifecycleScope, MockAIProvider())
+        // Real replies come from your Vibe server once the app is connected to it.
+        // Until then -- and whenever it can't be reached -- the on-phone
+        // templates answer, labelled PREVIEW.
+        controller = VibeController(
+            scope = lifecycleScope,
+            provider = RemoteAIProvider(DataStoreConnectionStore(this), fallback = MockAIProvider()),
+            store = VibeData.store(this),
+            io = Dispatchers.IO,
+        )
         controller.fieldIsEmpty = { input.isFieldEmpty() }
+        controller.fieldText = { input.fieldText() }
+        // Scan reads the clipboard only when tapped, and never in a private field.
+        controller.freshClip = { if (keyboard.vibeAllowed) clipboard.freshText(maxAgeMs = 5 * 60_000) else null }
         clipboard = ClipboardSource(this) { text ->
             if (prefs.suggestOnCopy && keyboard.vibeAllowed) controller.onCopied(text, automatic = true)
         }
 
         lifecycleScope.launch {
-            VibeSettings(this@VibeInputMethodService).preferences.collect {
+            settings.preferences.collect {
                 prefs = it
-                keyboard.autoReply = it.autoReply
                 keyboard.haptics = it.haptics
-                controller.autoReply = it.autoReply
+                controller.autoRules = it.autoRules
+                controller.mode = it.mode
             }
         }
         lifecycleScope.launch {
@@ -80,9 +97,40 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
                 when (action) {
                     is FieldAction.Insert -> input.insertSuggestion(action.text)
                     is FieldAction.Remove -> input.removeIfLastInserted(action.text)
+                    is FieldAction.Send -> send(action.text)
                 }
             }
         }
+        lifecycleScope.launch {
+            controller.commands.collect { command ->
+                when (command) {
+                    is VibeCommand.OpenImport -> openApp(MainActivity.SCREEN_IMPORT)
+                    VibeCommand.OpenSettings -> openApp(null)
+                    is VibeCommand.PersistMode -> settings.setMode(command.mode)
+                }
+            }
+        }
+    }
+
+    /**
+     * Auto mode's last step. The keyboard presses the field's own Send action --
+     * the same thing its Enter key does in that field -- and then checks the
+     * box actually emptied before anything is reported as sent.
+     */
+    private fun send(text: String) {
+        val pressed = input.sendIfStill(text, currentInputEditorInfo)
+        lifecycleScope.launch {
+            if (pressed) delay(450)
+            controller.onSendResult(pressed && input.isFieldEmpty())
+        }
+    }
+
+    private fun openApp(screen: String?) {
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .apply { if (screen != null) putExtra(MainActivity.EXTRA_SCREEN, screen) },
+        )
     }
 
     override fun onCreateInputView(): View {
@@ -116,10 +164,9 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
         super.onStartInputView(info, restarting)
         keyboard.configureFor(info)
 
-        if (info.packageName != lastPackage) {
-            controller.onAppChanged()
-            lastPackage = info.packageName
-        }
+        // Tells the controller which app (never which chat), and whether this
+        // field has a Send action a keyboard may press.
+        controller.onInputStarted(info.packageName, keyboard.enterAction == EnterAction.SEND)
         refreshAutoCaps()
 
         if (keyboard.vibeAllowed) {
@@ -185,16 +232,20 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
         override fun onText(text: String) {
             if (controller.isCapturingKeys) {
                 controller.typeIntoContext(text)
-                val draft = (controller.card.value as? CardState.ContextNeeded)?.draft.orEmpty()
+                val draft = controller.captureDraft
                 keyboard.applyAutoCaps(draft.isEmpty() || draft.trimEnd().endsWith('.'))
                 return
             }
+            // Touching the keys during an Auto countdown means "not that one".
+            if (controller.isCountingDown) controller.cancelSend()
             input.commit(text)
             if (text.length == 1 && text[0].isLetter()) keyboard.onLetterTyped()
         }
 
         override fun onBackspace() {
-            if (controller.isCapturingKeys) controller.deleteFromContext() else input.backspace()
+            if (controller.isCapturingKeys) return controller.deleteFromContext()
+            if (controller.isCountingDown) controller.cancelSend()
+            input.backspace()
         }
 
         override fun onEnter() {
@@ -210,12 +261,15 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
 
         override fun onVibeTap() {
             if (!keyboard.vibeAllowed) return
-            if (controller.card.value != CardState.Hidden) {
-                controller.dismiss()
-            } else {
-                // An explicit tap: a message copied in the last few minutes still counts.
-                controller.onManualRequest(clipboard.freshText(maxAgeMs = 5 * 60_000))
-            }
+            if (controller.card.value is CardState.Panel) controller.dismiss() else controller.openPanel()
+        }
+
+        override fun onScan() {
+            if (keyboard.vibeAllowed) controller.onScan()
+        }
+
+        override fun onToggleMode() {
+            if (keyboard.vibeAllowed) controller.toggleMode()
         }
 
         override fun onSpaceLongPress() {
@@ -224,11 +278,6 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
 
         override fun onHide() = requestHideSelf(0)
 
-        override fun onOpenSettings() {
-            startActivity(
-                Intent(this@VibeInputMethodService, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            )
-        }
+        override fun onOpenSettings() = openApp(null)
     }
 }

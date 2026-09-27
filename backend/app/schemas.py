@@ -51,6 +51,11 @@ MAX_AVOID = 20                   # suggestions already shown this session
 MAX_AVOID_CHARS = 2_000
 MAX_CONTEXT_ITEMS = 40           # answers to context alerts
 MAX_CONTEXT_CHARS = 2_000
+MAX_NOTES = 24                   # memory notes the keyboard sends from the phone
+MAX_NOTE_CHARS = 400
+MAX_STYLE_NOTE_CHARS = 600
+MAX_STYLE_SAMPLES = 10           # his own past messages, as a voice reference
+MAX_STYLE_SAMPLE_CHARS = 300
 
 
 class Message(BaseModel):
@@ -236,6 +241,16 @@ class SuggestRequest(BaseModel):
         None, description="Set when the user picked Continue / Stop / Wait"
     )
     local_time: Optional[datetime] = None
+    # From the keyboard, whose per-chat memory lives on the phone rather than
+    # in this store: only the notes relevant to this message, never a history.
+    memory_notes: list[Annotated[str, StringConstraints(max_length=MAX_NOTE_CHARS)]] = Field(
+        default_factory=list, max_length=MAX_NOTES
+    )
+    style_notes: Optional[Annotated[str, StringConstraints(max_length=MAX_STYLE_NOTE_CHARS)]] = None
+    # Messages he actually wrote, picked on the phone. Only ever his side.
+    style_samples: list[Annotated[str, StringConstraints(max_length=MAX_STYLE_SAMPLE_CHARS)]] = Field(
+        default_factory=list, max_length=MAX_STYLE_SAMPLES
+    )
 
 
 class SuggestResponse(BaseModel):

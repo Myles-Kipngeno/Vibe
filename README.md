@@ -29,7 +29,7 @@ You need JDK 17+ and the Android SDK (Android Studio brings both).
 
 ```bash
 cd android
-./gradlew testDebugUnitTest      # engine + card state machine
+./gradlew testDebugUnitTest      # engine, memory, Auto rules, card state machine
 ./gradlew assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -37,43 +37,142 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Then open **Vibe**, turn the keyboard on and switch to it, and tap **Try it**
 for a practice chat covering every card: suggestion, needs context, picture
 request, winding down, a boundary, and a message it deliberately ignores.
+**Import a chat** takes a WhatsApp export and shows what Vibe learned from it.
 
 ### What a keyboard can and cannot see
 
 A keyboard sees the box it is typing into, and the clipboard (Android lets
 only the active keyboard read it). **It cannot read the chat on screen**, in
-WhatsApp or anywhere else. So Vibe works from what you copy: long-press their
-message → Copy → tap the message box, and the card is there. Tapping ✦ asks
-by hand. Several messages copied together keep who said what.
+WhatsApp or anywhere else, and nothing Android gives it says *which* chat is
+open -- only which app. So Vibe gets context three honest ways, and says which
+one it is using:
+
+| Source | How | Where |
+|---|---|---|
+| Copied messages | long-press → Copy, then open the box or tap **Scan** | every app |
+| Imported history | WhatsApp: ⋮ → More → **Export chat** → Without media → Vibe | WhatsApp |
+| What you tell it | answer when Vibe asks "who's Randy?" | every app |
+
+Where none is available, Scan says *"Android doesn't let keyboards read
+Instagram chats"* and offers the alternatives. It never shows a message count
+it did not actually read.
+
+### The toolbar and panel
+
+```
+✦ Sarah •   Scan   Suggest                          ˅
+```
+
+- **✦ Sarah** opens the panel: which chat's memory is in use, its state
+  (ready / may be out of date / needs context), real message and memory
+  counts, Scan, Change chat, Suggest | Auto, Memory, Import, Settings.
+- **Scan** reads what is actually available (the clipboard, the saved
+  history, the box), saves copied messages into the picked chat, refreshes its
+  summary, and answers their newest message.
+- **Suggest / Auto** switches reply mode. Auto is explained before it turns on.
+- **˅** swaps in Settings, Switch keyboard and Hide, without changing height.
+
+### Memory, per conversation
+
+Each chat is a record with a random id, a platform, and a name you chose:
+the keyboard can't identify the contact, so **you pick the chat** (✦ → Pick a
+chat). A pick is dropped when you switch apps, when the keyboard has been idle
+ten minutes, and when copied messages carry a sender name that isn't this
+chat's -- the three ways one person's memory could otherwise reach another.
+
+A scan or import builds, from the messages alone: a summary (their language
+mix, message length, emojis, laughter), topics that *recur*, people and places
+mentioned, shared references ("remember when…"), and memories quoting where
+each came from. Nothing is inferred; a name that appears nowhere cannot appear
+in the summary. Replies get the recent messages, the summary, and only the
+memories and older messages that bear on what they just said -- not the whole
+history. Every memory can be viewed, edited, forgotten (and stays forgotten
+after a rescan), or cleared, from the keyboard or the app.
+
+Your own style (Sheng mix, length, emojis, phrases) is learned from your side
+of imports and, weakly, from suggestions you use. Never from theirs.
+
+### Suggest and Auto
+
+**Suggest** (the default) generates; you tap Use to put it in the box; you
+press Send. **Auto** is three separate permissions, each earned:
+
+1. *Generate* -- only for an ordinary incoming message Vibe decided to answer.
+2. *Insert* -- only into an empty box, and only when every rule passes.
+3. *Send* -- only where the message box itself has a Send action (WhatsApp or
+   Telegram with "Enter is send" on, for example), after a visible countdown
+   that a tap or any key cancels. The keyboard presses the same action its
+   Enter key would, then checks the box actually emptied before saying "Sent".
+   Elsewhere, Auto fills the box and you send.
+
+Never automatic, whatever the settings: photos, PINs/passwords/money/ID
+numbers, anything Vibe lacks context for, boundaries, emotional messages,
+long messages, and replies containing numbers. You can relax "only with this
+chat's context" and "only casual messages"; the rest is not a setting.
 
 ### What it holds itself to
 
-- **No internet permission.** The manifest does not ask for it, so nothing
-  typed on the phone can leave it. It arrives with the real AI provider, not
-  before.
+- **Nothing leaves the phone until you connect it.** The internet permission
+  exists for one request: a suggestion, sent to the server *you* configured.
+  Nothing typed is ever sent.
 - **Off in private fields.** Password and incognito fields get a plain
   keyboard; Vibe reads nothing there.
-- **Fresh clips only.** A message copied in the last minute or so, never
+- **Fresh clips only.** A message copied in the last few minutes, never
   one that has sat on the clipboard, and never one marked sensitive.
-- **Context is per chat and in memory.** What you tell it ("Randy is my
-  cousin") is forgotten when you switch apps, so one person's context never
-  reaches another conversation.
-- **Auto Reply fills the box; it never sends.** Generating, inserting and
-  sending are separate steps, and Vibe only ever does the first two. No
-  messaging app lets a keyboard press Send, and Vibe does not pretend to.
+- **Memory stays on the phone.** App-private storage, excluded from backup
+  and device transfer, one file per chat, capped at 1,500 messages.
+  *Delete all chats and memory* is on the home screen.
+- **A broken memory never breaks the keyboard.** Storage errors become an
+  "unavailable" state; typing and copy-to-suggest carry on.
+
+### Real replies: connecting the keyboard to your server
+
+Without a connection the keyboard answers from built-in templates, labelled
+PREVIEW. Connected, each suggestion comes from this repo's backend and its
+model -- **up to three options** that differ in approach, picked with a tap --
+and uses the example library and your Used/Edited/Rejected history there.
+
+1. Give the backend a model key (see *Turning on real AI*) and start it:
+   `.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000`.
+2. Reach it from the phone, one of three ways:
+   - **USB (simplest, nothing on the network):** `adb reverse tcp:8000 tcp:8000`,
+     then the address is `http://127.0.0.1:8000`.
+   - **Home Wi-Fi (debug builds only):** start uvicorn with `--host 0.0.0.0`,
+     allow it through Windows Firewall, use `http://<your PC's IP>:8000`.
+     Plain HTTP: anyone on that Wi-Fi could read it. Accounts must be on.
+   - **Deployed:** its `https://` address (`render.yaml`). Release builds
+     accept only HTTPS, and localhost.
+3. In the Vibe app: **AI replies → Connect**, check the server, and sign in
+   with the same account as the web app when it has accounts on.
+
+What is sent, and only when a suggestion is asked for: the chat's recent
+messages, the memories relevant to that message, and your style summary. Never
+anything typed, never from password or incognito fields. The model key stays
+on the server. If the server can't be reached, is rate-limited, or the session
+expired, the keyboard falls back to templates and the card says why.
 
 ### Layout
 
 ```
 android/app/src/main/java/com/vibe/keyboard/
-  ime/        VibeInputMethodService, clipboard source, text insertion, root layout
-  keyboard/   keys, layouts, shift/mode state
-  overlay/    VibeController (the card's state machine), VibeCard, session memory
-  engine/     conversation parsing and on-device detection (a port of backend/core)
-  ai/         AIProvider interface; MockAIProvider (RemoteAIProvider comes next)
-  settings/   DataStore switches: suggest on copy, Auto Reply, haptics
-  app/        companion app: setup, settings, privacy, practice chat
+  ime/        VibeInputMethodService, clipboard source, text insertion + send, root layout
+  keyboard/   keys, layouts, shift/mode state, the Vibe toolbar
+  overlay/    VibeController (the card's state machine), cards, panel, session memory
+  context/    platforms and capabilities, context providers + scanner, the active-chat session
+  memory/     records, file store, summarizer, retrieval, WhatsApp export import, your style
+  auto/       Suggest/Auto and the Auto rules
+  engine/     parsing, detection, rhythm, text stats (a port of backend/core)
+  ai/         AIProvider + ReplyContext; MockAIProvider (on-phone templates, the fallback)
+  remote/     RemoteAIProvider, BackendClient, the saved connection and Supabase sign-in
+  settings/   DataStore switches: suggest on copy, reply mode, Auto rules, haptics
+  app/        companion app: setup, settings, import, memory, privacy, practice chat
 ```
+
+A record maps onto the backend's tables -- `conversations`,
+`conversation_memories` (key, value, source user|conversation) and
+`communication_preferences` -- so syncing with accounts is a mapping, not a
+redesign. Memory itself is not synced: it stays on the phone, and each request
+carries only the part relevant to that message.
 
 The phone will never hold a model key. `RemoteAIProvider` will call this
 repo's backend `/api/conversation/suggest`, which already has the prompts
@@ -138,14 +237,24 @@ Out of the box the app runs in **offline mode**: analysis and alerts are real,
 but the reply text comes from fixed templates. The UI says so on every screen —
 mock output is never presented as AI output.
 
-To enable real generation:
+To enable real generation you need one model key, and **it does not have to
+be Anthropic's**. Any provider speaking the OpenAI-compatible chat API works
+through `providers/openai_compatible.py`:
 
-1. Get a key at <https://console.anthropic.com/settings/keys>. Anthropic keys
-   start with `sk-ant-`.
-2. `cp backend/.env.example backend/.env` (or edit the `backend/.env` that is
-   already there).
-3. Set `ANTHROPIC_API_KEY=sk-ant-...` and `AI_PROVIDER=auto`.
-4. Restart the backend.
+| `AI_PROVIDER` | Key variable | Free tier |
+|---|---|---|
+| `groq` | `GROQ_API_KEY` | yes, <https://console.groq.com/keys> |
+| `gemini` | `GEMINI_API_KEY` | yes, <https://aistudio.google.com/apikey> |
+| `openrouter` | `OPENROUTER_API_KEY` | some models |
+| `ollama` | none | runs on your own machine (needs a strong one) |
+| `anthropic` | `ANTHROPIC_API_KEY` (`sk-ant-…`) | no |
+
+1. Get a key from one of them. Free tiers have their own terms about what
+   they do with what you send; for private chats, read them first.
+2. Put it in `backend/.env` under its own name, and set `AI_PROVIDER=auto`.
+3. Restart the backend. `/api/health` shows which provider and model it chose.
+
+`AI_MODEL` overrides the default model; model names change often.
 
 `backend/.env` is git-ignored. Never put a key in frontend code or in a commit.
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    HTTPS everywhere, except the phone's own loopback: that is where a server
+    running on your computer appears when it is forwarded over USB with
+    `adb reverse tcp:8000 tcp:8000`, and traffic there never touches a network.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

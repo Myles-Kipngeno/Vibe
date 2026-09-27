@@ -20,7 +20,6 @@ class KeyboardState {
 
     /** False in password and incognito fields: Vibe steps aside entirely there. */
     var vibeAllowed by mutableStateOf(true)
-    var autoReply by mutableStateOf(false)
     var haptics by mutableStateOf(true)
 
     private var lastShiftTap = 0L

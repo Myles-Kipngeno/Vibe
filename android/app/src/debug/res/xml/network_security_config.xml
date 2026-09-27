@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug builds only: also allow plain HTTP to a server on your home Wi-Fi
+    (http://192.168.x.x:8000). Anyone on the same network could read that
+    traffic, so it is for trying Vibe at home, never for a release build;
+    those use the main config, which requires HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

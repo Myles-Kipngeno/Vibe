@@ -66,6 +66,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vibe.keyboard.auto.ReplyMode
 import com.vibe.keyboard.ui.MarkMood
 import com.vibe.keyboard.ui.VibeIcons
@@ -296,7 +297,7 @@ private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions, 
 @Composable
 private fun OptionList(card: CardState.Suggestion, actions: CardActions, compact: Boolean) {
     val dim = Modifier.graphicsLayer { alpha = if (card.refreshing) 0.45f else 1f }
-    Column(dim.padding(end = 8.dp, top = 2.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(dim.padding(end = 8.dp, top = 2.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (compact) {
             OptionRow(card.text, selected = true) { actions.selectOption((card.selected + 1) % card.options.size) }
             Text(
@@ -316,7 +317,7 @@ private fun OptionList(card: CardState.Suggestion, actions: CardActions, compact
 private fun OptionRow(text: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         text,
-        style = VibeType.CardBody,
+        style = VibeType.CardBody.copy(fontSize = 15.sp, lineHeight = 20.sp),
         color = if (selected) VibeColors.TextPrimary else VibeColors.TextSecondary,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
@@ -326,7 +327,7 @@ private fun OptionRow(text: String, selected: Boolean, onClick: () -> Unit) {
             .background(if (selected) VibeColors.Accent.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.04f))
             .border(1.dp, if (selected) VibeColors.Accent.copy(alpha = 0.45f) else Color.Transparent, RoundedCornerShape(12.dp))
             .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
 

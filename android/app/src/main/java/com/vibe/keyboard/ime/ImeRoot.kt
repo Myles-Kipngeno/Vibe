@@ -57,7 +57,9 @@ fun ImeRoot(
     // Room for the tallest card (context, expanded) in portrait. In landscape
     // there is barely any, so the card switches to its compact layout.
     val keyboardDp = if (landscape) 44 + 4 * 40 + 4 else 44 + 4 * 50 + 4
-    val slotDp = (config.screenHeightDp - keyboardDp - 32).coerceIn(96, 300)
+    // 380 fits three model options, a note and the buttons; on shorter screens
+    // the slot shrinks and the card switches to its compact layout below 200.
+    val slotDp = (config.screenHeightDp - keyboardDp - 32).coerceIn(96, 380)
     val compact = slotDp < 200
 
     var cardTop by remember { mutableStateOf<Float?>(null) }

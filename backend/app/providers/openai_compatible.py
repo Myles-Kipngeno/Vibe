@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from typing import TypeVar
 
 import httpx
@@ -25,10 +26,24 @@ T = TypeVar("T", bound=BaseModel)
 # than this file does.
 PRESETS: dict[str, tuple[str, str]] = {
     "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b"),
-    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash"),
+    # gemini-2.5-flash is now limited to accounts that used it before (new keys
+    # get 404), and on the free tier gemini-3.8-flash answered 503 even after a
+    # retry. 3.5-flash-lite answered every time in about 2s, with good Sheng.
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.5-flash-lite"),
     "openrouter": ("https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free"),
     "ollama": ("http://localhost:11434/v1", "llama3.2"),
 }
+
+# Extra request fields per provider. Gemini 3 models think before answering,
+# and the thinking counts against max_tokens: left at its default it can use
+# the whole budget and return nothing. A reply is one or two lines, so a short
+# think is enough.
+_EXTRA_BODY: dict[str, dict] = {
+    "gemini": {"reasoning_effort": "low"},
+}
+
+# Busy or briefly down (Gemini's free tier answers 503 often): worth one retry.
+_TRANSIENT = {500, 502, 503, 504}
 
 _JSON_INSTRUCTION = """
 
@@ -53,6 +68,7 @@ class OpenAICompatibleProvider(LLMProvider):
         max_tokens: int = 1200,
         timeout: float = 30.0,
         client: httpx.Client | None = None,
+        retry_delay: float = 1.5,
     ) -> None:
         self.name = name
         self.model = model
@@ -60,6 +76,7 @@ class OpenAICompatibleProvider(LLMProvider):
         self._key = api_key
         self._max_tokens = max_tokens
         self._client = client or httpx.Client(timeout=timeout)
+        self._retry_delay = retry_delay
 
     def generate(
         self, system: str, user: str, schema: type[T], context: dict | None = None
@@ -76,11 +93,16 @@ class OpenAICompatibleProvider(LLMProvider):
             "temperature": 0.9,
             "max_tokens": self._max_tokens,
             "response_format": {"type": "json_object"},
+            **_EXTRA_BODY.get(self.name, {}),
         }
-        try:
-            response = self._client.post(self._url, headers=headers, json=body)
-        except httpx.HTTPError as exc:
-            raise ProviderError(f"Could not reach {self.name} (network error).") from exc
+        for attempt in (1, 2):
+            try:
+                response = self._client.post(self._url, headers=headers, json=body)
+            except httpx.HTTPError as exc:
+                raise ProviderError(f"Could not reach {self.name} (network error).") from exc
+            if response.status_code not in _TRANSIENT or attempt == 2:
+                break
+            time.sleep(self._retry_delay)
 
         if response.status_code in (401, 403):
             raise ProviderError(f"{self.name} rejected the API key (HTTP {response.status_code}). Check AI_API_KEY.")

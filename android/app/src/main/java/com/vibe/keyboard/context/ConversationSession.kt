@@ -1,6 +1,7 @@
 package com.vibe.keyboard.context
 
 import com.vibe.keyboard.ai.ReplyContext
+import com.vibe.keyboard.engine.ChatMessage
 import com.vibe.keyboard.engine.Conversation
 import com.vibe.keyboard.engine.Speaker
 import com.vibe.keyboard.memory.ConversationRecord
@@ -161,6 +162,41 @@ class ConversationSession(
     fun rebuild(record: ConversationRecord): ConversationRecord = ConversationSummarizer.rebuild(record, now())
 
     /**
+     * New messages from the chat that is still going on after an import:
+     * what the user copied, and what they sent. Added to the picked chat's
+     * history without a Scan, so memory keeps up with the conversation.
+     * @return how many were new.
+     */
+    fun append(messages: List<ChatMessage>, theirNames: List<String> = emptyList()): Int {
+        val record = active() ?: return 0
+        val merged = ContextScanner.mergeTail(record.messages, messages)
+        val added = merged.size - record.messages.size
+        if (added <= 0) return 0
+        val grown = record.copy(
+            messages = merged,
+            theirNames = (record.theirNames + theirNames).distinct(),
+        )
+        store.save(refreshed(grown))
+        return added
+    }
+
+    /** A message the user just sent in the picked chat. Their side of it, as sent. */
+    fun recordSent(text: String): Boolean {
+        val clean = text.trim()
+        if (clean.isEmpty()) return false
+        return append(listOf(ChatMessage(Speaker.ME, clean, now()))) > 0
+    }
+
+    /**
+     * Summary and memories are rebuilt every [REBUILD_EVERY] new messages, not
+     * on each one; in between, the history is simply longer and still current.
+     */
+    private fun refreshed(record: ConversationRecord): ConversationRecord {
+        val since = record.messages.size - (record.summary?.basedOnMessages ?: 0)
+        return if (record.summary == null || since >= REBUILD_EVERY) rebuild(record) else record.copy(lastScanAt = now())
+    }
+
+    /**
      * True when copied messages name a sender this chat has never had: the
      * user has probably moved to another conversation in the same app.
      */
@@ -286,5 +322,6 @@ class ConversationSession(
         const val STALE_AFTER_MS = 12 * HOUR_MS
         const val IDLE_EXPIRY_MS = 10 * 60_000L
         const val RECENT_WINDOW = 12
+        const val REBUILD_EVERY = 10
     }
 }

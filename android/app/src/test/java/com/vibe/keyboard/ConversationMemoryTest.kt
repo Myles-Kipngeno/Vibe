@@ -102,7 +102,9 @@ class ConversationMemoryTest {
         val req = provider.requests.single()
         assertEquals("Jane · Instagram", req.reply.conversationLabel)
         assertTrue(req.reply.memories.isEmpty())
-        assertNull(req.reply.summary)
+        // Jane's chat now has its own summary, built from Jane's messages only.
+        val janeSummary = req.reply.summary.toString()
+        assertFalse(janeSummary.contains("Naivas") || janeSummary.contains("weekend"))
         val everything = (req.reply.recent + req.reply.snippets).joinToString { it.text } + req.context.values
         assertFalse(everything.contains("Naivas"))
         assertFalse(everything.contains("Randy is my roommate"))
@@ -159,7 +161,7 @@ class ConversationMemoryTest {
         c.submitContext()
         advanceUntilIdle()
 
-        assertEquals(listOf("person:brian"), store.get("jane-1")!!.memories.map { it.key })
+        assertEquals(listOf("person:brian"), store.get("jane-1")!!.memories.filter { it.source == MemorySource.USER }.map { it.key })
         assertTrue(store.get("sarah-1")!!.memories.none { it.key == "person:brian" })
         assertTrue(SessionMemory.keys().isEmpty()) // persisted to Jane, not the session
     }
@@ -198,6 +200,75 @@ class ConversationMemoryTest {
         clock += 11 * 60_000L
         c.onInputStarted("com.whatsapp", false)
         assertNull(c.status.value.conversationId)
+    }
+
+    // --- The chat keeps going after the import --------------------------------
+
+    @Test fun `messages copied after the import join the chat's memory without a Scan`() = runTest {
+        store.save(sarah())
+        val c = controller()
+        c.onInputStarted("com.whatsapp", false)
+        c.selectConversation("sarah-1")
+        val before = store.get("sarah-1")!!.messages.size
+
+        c.onCopied("Btw nimeanza job mpya leo 😃", automatic = true)
+        advanceUntilIdle()
+        assertEquals(before + 1, store.get("sarah-1")!!.messages.size)
+        assertEquals("Btw nimeanza job mpya leo 😃", store.get("sarah-1")!!.messages.last().text)
+        assertEquals(before + 1, c.status.value.messageCount)
+
+        // The same message copied again is not stored twice.
+        c.onCopied("Btw nimeanza job mpya leo 😃", automatic = false)
+        advanceUntilIdle()
+        assertEquals(before + 1, store.get("sarah-1")!!.messages.size)
+    }
+
+    @Test fun `what the user sends is remembered, so the next reply knows both sides`() = runTest {
+        store.save(sarah())
+        val c = controller()
+        c.onInputStarted("com.whatsapp", false)
+        c.selectConversation("sarah-1")
+        c.onCopied("Btw nimeanza job mpya leo 😃", automatic = true)
+        advanceUntilIdle()
+        c.onMessageSent("Wueh congrats! Ni wapi?")
+        advanceUntilIdle()
+        c.onCopied("Ni kwa bank moja Westlands 😊", automatic = true)
+        advanceUntilIdle()
+
+        val history = store.get("sarah-1")!!.messages.takeLast(3)
+        assertEquals(listOf(Speaker.THEM, Speaker.ME, Speaker.THEM), history.map { it.speaker })
+        assertEquals("Wueh congrats! Ni wapi?", history[1].text)
+        val recent = provider.requests.last().reply.recent.map { it.text }
+        assertTrue(recent.containsAll(listOf("Btw nimeanza job mpya leo 😃", "Wueh congrats! Ni wapi?", "Ni kwa bank moja Westlands 😊")))
+    }
+
+    @Test fun `nothing is recorded without a picked chat, or with the setting off`() = runTest {
+        store.save(sarah())
+        val c = controller()
+        c.onInputStarted("com.whatsapp", false)
+        c.onMessageSent("hello there")
+        advanceUntilIdle()
+        assertTrue(store.get("sarah-1")!!.messages.none { it.text == "hello there" })
+
+        c.selectConversation("sarah-1")
+        c.rememberSent = false
+        c.onMessageSent("hello there")
+        advanceUntilIdle()
+        assertTrue(store.get("sarah-1")!!.messages.none { it.text == "hello there" })
+    }
+
+    @Test fun `the summary refreshes itself as the chat grows`() = runTest {
+        store.save(sarah())
+        val c = controller()
+        c.onInputStarted("com.whatsapp", false)
+        c.selectConversation("sarah-1")
+        repeat(10) { i ->
+            c.onMessageSent("nilimwambia Brian $i")
+            advanceUntilIdle()
+        }
+        val record = store.get("sarah-1")!!
+        assertEquals(record.messages.size, record.summary!!.basedOnMessages)
+        assertTrue("Brian" in record.summary!!.people)
     }
 
     // --- Retrieval and missing context -------------------------------------

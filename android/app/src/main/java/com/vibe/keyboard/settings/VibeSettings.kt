@@ -19,6 +19,8 @@ data class VibePreferences(
     val autoReply: Boolean = false,
     val haptics: Boolean = true,
     val autoRules: AutoRulesConfig = AutoRulesConfig(),
+    /** Add what the user sends in a picked chat to its history. */
+    val rememberSent: Boolean = true,
 ) {
     val mode: ReplyMode get() = if (autoReply) ReplyMode.AUTO else ReplyMode.SUGGEST
 }
@@ -40,6 +42,7 @@ class VibeSettings(context: Context) {
                 sendWhereSupported = p[AUTO_SEND] ?: true,
                 sendDelaySeconds = p[AUTO_DELAY] ?: 5,
             ),
+            rememberSent = p[REMEMBER_SENT] ?: true,
         )
     }
 
@@ -50,6 +53,7 @@ class VibeSettings(context: Context) {
     suspend fun setAutoOnlyWithContext(on: Boolean) = store.edit { it[AUTO_ONLY_WITH_CONTEXT] = on }
     suspend fun setAutoOnlyCasual(on: Boolean) = store.edit { it[AUTO_ONLY_CASUAL] = on }
     suspend fun setAutoSend(on: Boolean) = store.edit { it[AUTO_SEND] = on }
+    suspend fun setRememberSent(on: Boolean) = store.edit { it[REMEMBER_SENT] = on }
     suspend fun setAutoDelay(seconds: Int) = store.edit { it[AUTO_DELAY] = seconds.coerceIn(3, 15) }
 
     private companion object {
@@ -62,5 +66,6 @@ class VibeSettings(context: Context) {
         val AUTO_ONLY_CASUAL = booleanPreferencesKey("auto_only_casual")
         val AUTO_SEND = booleanPreferencesKey("auto_send")
         val AUTO_DELAY = intPreferencesKey("auto_delay_seconds")
+        val REMEMBER_SENT = booleanPreferencesKey("remember_sent")
     }
 }

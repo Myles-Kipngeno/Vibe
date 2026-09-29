@@ -89,6 +89,15 @@ memories and older messages that bear on what they just said -- not the whole
 history. Every memory can be viewed, edited, forgotten (and stays forgotten
 after a rescan), or cleared, from the keyboard or the app.
 
+**The chat keeps going after an import, and so does its memory.** With a chat
+picked, every message you copy is added to its history straight away (no Scan
+needed), and so is every message you send: when the message box empties in
+one go right after you wrote something, the keyboard records it as sent.
+Backspacing, Undo and switching chats never count. Every 10 new messages the
+summary and memories rebuild. Her side can only arrive by copying -- Android
+never shows a keyboard the chat -- so copying her new messages is what keeps
+Vibe current. *Keep picked chats up to date* turns the sent-message part off.
+
 Your own style (Sheng mix, length, emojis, phrases) is learned from your side
 of imports and, weakly, from suggestions you use. Never from theirs.
 

@@ -59,6 +59,11 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
     private val settings by lazy { VibeSettings(this) }
 
     private var inputRoot: View? = null
+
+    /** The message box as last seen, to notice the moment it is sent. */
+    private var lastFieldText = ""
+    /** The user (or Vibe's Undo) is deleting: an empty box then is not a send. */
+    private var deleting = false
     private var visibleTopPx = 0
 
     override fun onCreate() {
@@ -90,13 +95,17 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
                 keyboard.haptics = it.haptics
                 controller.autoRules = it.autoRules
                 controller.mode = it.mode
+                controller.rememberSent = it.rememberSent
             }
         }
         lifecycleScope.launch {
             controller.fieldActions.collect { action ->
                 when (action) {
                     is FieldAction.Insert -> input.insertSuggestion(action.text)
-                    is FieldAction.Remove -> input.removeIfLastInserted(action.text)
+                    is FieldAction.Remove -> {
+                        deleting = true
+                        input.removeIfLastInserted(action.text)
+                    }
                     is FieldAction.Send -> send(action.text)
                 }
             }
@@ -168,6 +177,10 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
         // field has a Send action a keyboard may press.
         controller.onInputStarted(info.packageName, keyboard.enterAction == EnterAction.SEND)
         refreshAutoCaps()
+        // A new box (another chat, another app) starts from what is in it now,
+        // so switching chats is never mistaken for sending.
+        lastFieldText = if (keyboard.vibeAllowed) input.fieldText() else ""
+        deleting = false
 
         if (keyboard.vibeAllowed) {
             clipboard.start()
@@ -191,6 +204,27 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         if (!controller.isCapturingKeys) refreshAutoCaps()
+        noticeSend()
+    }
+
+    /**
+     * The box went from a written message to empty in one step, and not by
+     * deleting: the app sent it (its Send button, or ours). Never looked at in
+     * password or incognito fields.
+     */
+    private fun noticeSend() {
+        if (!keyboard.vibeAllowed || controller.isCapturingKeys) {
+            lastFieldText = ""
+            return
+        }
+        val now = input.fieldText()
+        val before = lastFieldText
+        lastFieldText = now
+        val wasDeleting = deleting
+        deleting = false
+        if (now.isEmpty() && before.isNotBlank() && before.trim().length >= 2 && !wasDeleting) {
+            controller.onMessageSent(before)
+        }
     }
 
     /**
@@ -245,6 +279,7 @@ class VibeInputMethodService : InputMethodService(), LifecycleOwner, SavedStateR
         override fun onBackspace() {
             if (controller.isCapturingKeys) return controller.deleteFromContext()
             if (controller.isCountingDown) controller.cancelSend()
+            deleting = true
             input.backspace()
         }
 

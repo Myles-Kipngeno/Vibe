@@ -10,6 +10,7 @@ prompt instruction alone is not a control.
 from __future__ import annotations
 
 from ..schemas import Analysis, Message
+from .coaching import coaching_section
 from .lexicon import CONVERSATION_GOALS
 from .style_profile import mirror_note, style_brief
 
@@ -160,6 +161,11 @@ def build_user_prompt(
             "## Already suggested, do not repeat or lightly reword\n"
             + "\n".join(f"- {a}" for a in avoid)
         )
+
+    # The coaching guide shapes how he flirts, jokes and asks her out. None of
+    # it applies past a boundary or when he chose to end things.
+    if not analysis.boundary_detected and action != "stop":
+        sections.append(coaching_section(goal))
 
     task = f"## Your task\nWrite replies for him. His goal: {goal_label}."
     if action == "stop":

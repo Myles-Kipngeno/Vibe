@@ -259,3 +259,40 @@ def test_sheng_goes_inside_the_sentence_and_flirt_must_carry_tension(client):
     assert '"Mambo,", "Sawa,", "Cheki,"' in prompt
     assert "every option must carry attraction or tension" in prompt
     assert "I'll carry you later" in prompt
+
+
+def test_a_busy_server_gets_one_retry():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(503, json={"error": "overloaded"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(GOOD)}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    p = OpenAICompatibleProvider("gemini", "https://g.example/v1", "m", "k", client=client, retry_delay=0)
+    assert len(p.generate("s", "u", GenerationResult).suggestions) == 3
+    assert len(calls) == 2
+
+
+def test_still_busy_after_the_retry_is_an_error():
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503, json={})))
+    p = OpenAICompatibleProvider("gemini", "https://g.example/v1", "m", "k", client=client, retry_delay=0)
+    with pytest.raises(ProviderError, match="HTTP 503"):
+        p.generate("s", "u", GenerationResult)
+
+
+def test_gemini_is_asked_to_think_briefly_and_uses_a_current_model():
+    from app.providers.openai_compatible import PRESETS
+
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(GOOD)}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    OpenAICompatibleProvider("gemini", "https://g.example/v1", "m", "k", client=client).generate("s", "u", GenerationResult)
+    assert seen["reasoning_effort"] == "low"
+    assert PRESETS["gemini"][1] != "gemini-2.5-flash"

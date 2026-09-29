@@ -184,3 +184,53 @@ def test_style_samples_are_bounded(client):
         json={"messages": [{"speaker": "them", "text": "hey"}], "style_samples": ["x"] * 11},
     )
     assert r.status_code == 422
+
+
+# --- The coaching guide ------------------------------------------------------------
+
+
+def _prompt_for(client, goal="keep_flowing", text="haha you actually went there? 😂", action=None):
+    captured = {}
+    from app.api import deps
+    from app.providers.mock import MockProvider
+
+    class Spy(MockProvider):
+        def generate(self, system, user, schema, context=None):
+            captured["user"] = user
+            return super().generate(system, user, schema, context)
+
+    client.app.dependency_overrides[deps.get_provider] = lambda: Spy()
+    try:
+        body = {"messages": [{"speaker": "them", "text": text}], "goal": goal}
+        if action:
+            body["action"] = action
+        client.post("/api/conversation/suggest", json=body)
+    finally:
+        client.app.dependency_overrides.pop(deps.get_provider, None)
+    return captured.get("user", "")
+
+
+def test_every_reply_is_coached_with_the_goal_playbook(client):
+    prompt = _prompt_for(client, goal="ask_out")
+    assert "## Coaching" in prompt
+    assert "Tie every message to something in this chat" in prompt
+    assert "at least two of the options must be an actual invitation" in prompt
+    assert "never paste one as-is" in prompt
+
+
+def test_each_chip_gets_its_own_playbook(client):
+    assert "Funny: make her laugh" in _prompt_for(client, goal="make_her_laugh")
+    assert "Flirt: playful and a little bold" in _prompt_for(client, goal="flirt")
+
+
+def test_no_coaching_past_a_boundary_or_when_ending(client):
+    assert "## Coaching" not in _prompt_for(client, text="I'm not interested, please stop texting me", action="stop")
+    assert "## Coaching" not in _prompt_for(client, action="stop")
+
+
+def test_the_left_out_tactics_are_not_in_the_guide():
+    from app.core.coaching import GUIDE, PLAYBOOK, REFERENCE_LINES
+
+    text = (GUIDE + " ".join(PLAYBOOK.values()) + REFERENCE_LINES).lower()
+    for banned in ("jealous", "love bomb", "send me a picture", "wet twice", "ignore her"):
+        assert banned not in text

@@ -23,6 +23,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -67,6 +69,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vibe.keyboard.ai.ReplyGoal
 import com.vibe.keyboard.auto.ReplyMode
 import com.vibe.keyboard.ui.MarkMood
 import com.vibe.keyboard.ui.VibeIcons
@@ -93,6 +96,7 @@ interface CardActions {
     fun retry()
     fun cancelSend()
     fun selectOption(index: Int)
+    fun chooseGoal(goal: ReplyGoal)
     fun openPanel()
     fun scan()
     fun chooseConversation()
@@ -126,6 +130,7 @@ fun VibeController.asCardActions(): CardActions = object : CardActions {
     override fun retry() = this@asCardActions.retry()
     override fun cancelSend() = this@asCardActions.cancelSend()
     override fun selectOption(index: Int) = this@asCardActions.selectOption(index)
+    override fun chooseGoal(goal: ReplyGoal) = this@asCardActions.chooseGoal(goal)
     override fun openPanel() = this@asCardActions.openPanel()
     override fun scan() = this@asCardActions.onScan()
     override fun chooseConversation() = this@asCardActions.chooseConversation()
@@ -230,6 +235,9 @@ private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions, 
             icon = { VibeMark(mood = if (card.refreshing) MarkMood.Thinking else MarkMood.Arrived, arrivalKey = card.text) },
             trailing = { if (card.isPreview) PreviewTag() },
         )
+        if (card.steerable && !compact && !card.sent && card.sendIn == null) {
+            GoalChips(card.goal, enabled = !card.refreshing, onPick = actions::chooseGoal)
+        }
         if (card.options.size > 1 && !card.autoInserted && !card.sent) {
             OptionList(card, actions, compact)
         } else AnimatedContent(
@@ -287,6 +295,35 @@ private fun SuggestionContent(card: CardState.Suggestion, actions: CardActions, 
             }
         }
         if (card.refreshing) ShimmerLine(Modifier.padding(top = 8.dp, end = 8.dp))
+    }
+}
+
+/**
+ * Where to take this reply. One row, scrolls sideways; the picked chip stays
+ * lit and sticks for the next messages until tapped again.
+ */
+@Composable
+private fun GoalChips(selected: ReplyGoal?, enabled: Boolean, onPick: (ReplyGoal) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(end = 8.dp, top = 2.dp, bottom = 8.dp),
+    ) {
+        for (g in ReplyGoal.entries) {
+            val on = g == selected
+            Text(
+                g.label,
+                style = VibeType.CardQuote,
+                color = if (on) VibeColors.OnAccent else VibeColors.TextSecondary,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(if (on) VibeColors.Accent else Color.White.copy(alpha = 0.06f))
+                    .clickable(enabled = enabled, role = Role.Button) { onPick(g) }
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+            )
+        }
     }
 }
 

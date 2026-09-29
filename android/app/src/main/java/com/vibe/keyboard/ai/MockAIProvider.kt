@@ -34,8 +34,11 @@ class MockAIProvider(
         // What the user told Vibe: this time, or before, about someone they just mentioned.
         val told = request.context.values.lastOrNull() ?: relevantNote(request, theirs)
 
+        val goal = request.goal?.takeIf { request.intent == ReplyIntent.REPLY || request.intent == ReplyIntent.CONTINUE }
         val candidates = if (told != null && request.intent == ReplyIntent.REPLY) {
             withContext(told, sheng)
+        } else if (goal != null) {
+            forGoal(goal, sheng)
         } else {
             templatesFor(request.intent, theirs, sheng, request.reply)
         }
@@ -112,6 +115,27 @@ class MockAIProvider(
                 en = listOf("Understood, I'll give you space. Take care 🙏", "Got it, sorry if I pushed. Take care", "No worries, all the best 🙏"),
                 sh = listOf("Sawa, nimeelewa. Take care 🙏", "Nimekuskia, sorry kama nilipush. Take care", "Poa, kila la heri 🙏"))
         }
+    }
+
+    private fun forGoal(goal: ReplyGoal, sheng: Boolean): List<String> = when (goal) {
+        ReplyGoal.FLIRT -> pick(sheng,
+            en = listOf("Careful, I might start missing you 😏", "You're trouble, you know that? 😌", "Keep talking like that and I'll have to see you 👀"),
+            sh = listOf("Wacha, utanifanya nikumiss 😏", "Wewe ni noma, unajua? 😌", "Ukiendelea hivi lazima tuonane 👀"))
+        ReplyGoal.FUNNY -> pick(sheng,
+            en = listOf("I'm telling my lawyer about this 😂", "Okay that's going in my diary 😂", "Not you exposing me like this 😭"),
+            sh = listOf("Nitampigia lawyer wangu 😂", "Aki hii naandika kwa diary 😂", "Usinianike hivi 😭"))
+        ReplyGoal.PLAYFUL -> pick(sheng,
+            en = listOf("Hmm, and what do I get for that? 😏", "Bold of you to assume 😌", "Prove it then 👀"),
+            sh = listOf("Hmm, na mimi napata nini? 😏", "Unajiamini sana 😌", "Basi thibitisha 👀"))
+        ReplyGoal.ASK_OUT -> pick(sheng,
+            en = listOf("Let's continue this over coffee. Saturday? ☕", "We should do this in person. When are you free?", "I know a spot you'd like. This weekend?"),
+            sh = listOf("Tuendelee hii tukikunywa coffee. Saturday? ☕", "Tuongee hii face to face. Uko free lini?", "Najua place utapenda. Weekend hii?"))
+        ReplyGoal.DEEPER -> pick(sheng,
+            en = listOf("Okay real question, what's something you're excited about lately?", "What's the best part of your week so far?", "Tell me something most people don't know about you"),
+            sh = listOf("Sawa swali serious, ni nini inakuexcite siku hizi?", "Ni nini imekuwa poa zaidi wiki hii?", "Niambie kitu watu wengi hawajui kukuhusu"))
+        ReplyGoal.COMFORT -> pick(sheng,
+            en = listOf("I'm sorry, that sounds really hard. I'm here if you want to talk", "That's a lot. Take it easy on yourself today", "Want to talk about it, or should I distract you? 🤍"),
+            sh = listOf("Pole sana, hiyo ni ngumu. Niko hapa ukitaka kuongea", "Hiyo ni mingi. Jipe muda leo", "Unataka tuongee ama nikudistract? 🤍"))
     }
 
     /**

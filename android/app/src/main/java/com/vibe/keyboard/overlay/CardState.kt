@@ -1,5 +1,6 @@
 package com.vibe.keyboard.overlay
 
+import com.vibe.keyboard.ai.ReplyGoal
 import com.vibe.keyboard.auto.AutoRulesConfig
 import com.vibe.keyboard.auto.ReplyMode
 import com.vibe.keyboard.context.ScanState
@@ -56,6 +57,9 @@ sealed interface CardState {
         val selected: Int = 0,
         /** The server's id per option, for telling it what was used. */
         val optionIds: List<String?> = options.map { null },
+        /** The goal chip in effect, and whether this reply can be steered by one at all. */
+        val goal: ReplyGoal? = null,
+        val steerable: Boolean = false,
         /** Regenerate in flight: keep the old text visible, dimmed. */
         val refreshing: Boolean = false,
         /** Auto mode put it in the box already; the card offers Undo instead of Use. */

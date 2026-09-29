@@ -22,6 +22,19 @@ enum class ReplyIntent {
 }
 
 /**
+ * Where the user wants this reply to take the conversation. Each maps to a goal
+ * the backend's prompts already know; none means "keep it flowing".
+ */
+enum class ReplyGoal(val backendId: String, val label: String) {
+    FLIRT("flirt", "Flirt"),
+    FUNNY("make_her_laugh", "Funny"),
+    PLAYFUL("playful", "Playful"),
+    ASK_OUT("ask_out", "Ask out"),
+    DEEPER("get_to_know", "Deeper"),
+    COMFORT("comfort", "Support"),
+}
+
+/**
  * Everything Vibe retrieved for this one reply, from this one conversation.
  * Deliberately not the whole history: recent messages, the summary, and only
  * the memories and older messages that bear on what they just said.
@@ -51,6 +64,8 @@ data class SuggestionRequest(
     /** Suggestions already shown, so Regenerate gives something new. */
     val avoid: List<String> = emptyList(),
     val reply: ReplyContext = ReplyContext.None,
+    /** The goal chip the user picked, if any. Applies to replies, not to sign-offs. */
+    val goal: ReplyGoal? = null,
 )
 
 data class Suggestion(

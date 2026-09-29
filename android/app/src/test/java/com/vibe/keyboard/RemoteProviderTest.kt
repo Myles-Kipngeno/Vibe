@@ -3,6 +3,7 @@ package com.vibe.keyboard
 import com.vibe.keyboard.ai.AIProvider
 import com.vibe.keyboard.ai.MockAIProvider
 import com.vibe.keyboard.ai.ReplyContext
+import com.vibe.keyboard.ai.ReplyGoal
 import com.vibe.keyboard.ai.ReplyIntent
 import com.vibe.keyboard.ai.Suggestion
 import com.vibe.keyboard.ai.SuggestionRequest
@@ -170,6 +171,38 @@ class RemoteProviderTest {
         c.use()
         advanceUntilIdle()
         assertTrue(server.requests.isEmpty())
+    }
+
+    @Test fun `a goal chip steers the reply, sticks, and toggles off`() = runTest {
+        val c = VibeController(this, provider(), hourOfDay = { 15 })
+        c.onCopied("you actually went there? 😂", automatic = true)
+        advanceUntilIdle()
+        assertTrue((c.card.value as CardState.Suggestion).steerable)
+
+        c.chooseGoal(ReplyGoal.FLIRT)
+        advanceUntilIdle()
+        assertEquals(ReplyGoal.FLIRT, (c.card.value as CardState.Suggestion).goal)
+
+        // The next message keeps the goal: someone flirting keeps flirting.
+        c.onCopied("haha stop it", automatic = false)
+        advanceUntilIdle()
+        c.chooseGoal(ReplyGoal.FLIRT) // tapped again: off
+        advanceUntilIdle()
+
+        val goals = server.suggestBodies().map { it["goal"]!!.jsonPrimitive.content }
+        assertEquals(listOf("keep_flowing", "flirt", "flirt", "keep_flowing"), goals)
+    }
+
+    @Test fun `sign-offs are never steered by a chip`() = runTest {
+        provider().suggest(request.copy(intent = ReplyIntent.GOODNIGHT, goal = ReplyGoal.FLIRT))
+        assertEquals("end_naturally", server.suggestBodies().single()["goal"]!!.jsonPrimitive.content)
+    }
+
+    @Test fun `something heavy gets a supportive reply unless another goal was picked`() = runTest {
+        val c = VibeController(this, provider(), hourOfDay = { 15 })
+        c.onCopied("I lost my job today, I'm not okay", automatic = true)
+        advanceUntilIdle()
+        assertEquals("comfort", server.suggestBodies().last()["goal"]!!.jsonPrimitive.content)
     }
 
     @Test fun `intents map to the backend's goals and actions`() = runTest {

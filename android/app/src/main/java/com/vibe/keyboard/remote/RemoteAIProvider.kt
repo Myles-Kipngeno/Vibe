@@ -141,7 +141,9 @@ class RemoteAIProvider(
     fun toDto(request: SuggestionRequest): SuggestRequestDto {
         val reply = request.reply
         val messages = reply.recent.ifEmpty { request.conversation.messages }.takeLast(30)
-        val (goal, action) = goalFor(request.intent)
+        val (defaultGoal, action) = goalFor(request.intent)
+        val steerable = request.intent == ReplyIntent.REPLY || request.intent == ReplyIntent.CONTINUE
+        val goal = request.goal?.takeIf { steerable }?.backendId ?: defaultGoal
         return SuggestRequestDto(
             messages = messages.map { it.toDto() },
             goal = goal,

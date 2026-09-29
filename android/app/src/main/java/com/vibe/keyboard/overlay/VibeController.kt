@@ -2,6 +2,7 @@ package com.vibe.keyboard.overlay
 
 import com.vibe.keyboard.ai.AIProvider
 import com.vibe.keyboard.ai.ReplyContext
+import com.vibe.keyboard.ai.ReplyGoal
 import com.vibe.keyboard.ai.ReplyIntent
 import com.vibe.keyboard.ai.SuggestionRequest
 import com.vibe.keyboard.ai.Verdict
@@ -103,6 +104,8 @@ class VibeController(
     private var lastIntent = ReplyIntent.REPLY
     private var lastCopiedFingerprint: Int? = null
     private var pendingContext: Map<String, String> = emptyMap()
+    /** The goal chip, kept for this app session: someone flirting keeps flirting. */
+    private var goal: ReplyGoal? = null
     private var scanning = false
     private val shown = mutableListOf<String>()
     private var job: Job? = null
@@ -310,6 +313,26 @@ class VibeController(
         if (it is CardState.Suggestion && !it.autoInserted && index in it.options.indices) {
             it.copy(selected = index, text = it.options[index])
         } else it
+    }
+
+    /**
+     * A goal chip. Picking one rewrites the reply toward it; picking it again
+     * goes back to just keeping the conversation going.
+     */
+    fun chooseGoal(next: ReplyGoal) {
+        val s = _card.value as? CardState.Suggestion ?: return
+        if (s.refreshing || s.sent || s.sendIn != null) return
+        goal = if (goal == next) null else next
+        if (s.autoInserted) _fieldActions.tryEmit(FieldAction.Remove(s.text))
+        generate(lastIntent)
+    }
+
+    /** Something heavy gets a supportive reply unless the user picked otherwise. */
+    private fun goalFor(intent: ReplyIntent, signal: VibeSignal): ReplyGoal? = when {
+        intent != ReplyIntent.REPLY && intent != ReplyIntent.CONTINUE -> null
+        goal != null -> goal
+        signal is VibeSignal.Emotional -> ReplyGoal.COMFORT
+        else -> null
     }
 
     fun regenerate() {
@@ -547,6 +570,7 @@ class VibeController(
     /** A different app means a different conversation. Nothing carries over. */
     fun onAppChanged() {
         job?.cancel()
+        goal = null
         conversation = null
         lastCopiedFingerprint = null
         pendingContext = emptyMap()
@@ -583,6 +607,7 @@ class VibeController(
                         conversation = convo,
                         intent = intent,
                         context = memory.all() + pendingContext,
+                        goal = goalFor(intent, signal),
                         avoid = shown.toList(),
                         reply = reply,
                     ),
@@ -594,6 +619,8 @@ class VibeController(
                     isPreview = suggestion.isPreview,
                     options = suggestion.options.ifEmpty { listOf(suggestion.text) },
                     optionIds = suggestion.optionIds,
+                    goal = goalFor(intent, signal),
+                    steerable = intent == ReplyIntent.REPLY || intent == ReplyIntent.CONTINUE,
                     note = note ?: suggestion.note,
                 )
                 if (mode != ReplyMode.AUTO || !auto) {

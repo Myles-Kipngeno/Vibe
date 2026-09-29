@@ -220,7 +220,7 @@ def test_every_reply_is_coached_with_the_goal_playbook(client):
 
 def test_each_chip_gets_its_own_playbook(client):
     assert "Funny: make her laugh" in _prompt_for(client, goal="make_her_laugh")
-    assert "Flirt: playful and a little bold" in _prompt_for(client, goal="flirt")
+    assert "Flirt: every option must carry attraction or tension" in _prompt_for(client, goal="flirt")
 
 
 def test_no_coaching_past_a_boundary_or_when_ending(client):
@@ -251,3 +251,11 @@ def test_what_is_still_excluded_stays_out():
     for banned in ("love bomb", "make her jealous", "slave", "give you the d"):
         assert banned not in text
     assert "never push" in text and "never explicit" in text
+
+
+def test_sheng_goes_inside_the_sentence_and_flirt_must_carry_tension(client):
+    prompt = _prompt_for(client, goal="flirt")
+    assert 'never bolted on as an opener' in prompt
+    assert '"Mambo,", "Sawa,", "Cheki,"' in prompt
+    assert "every option must carry attraction or tension" in prompt
+    assert "I'll carry you later" in prompt

@@ -42,6 +42,10 @@ in" fades.
 Hang a compliment on an event ("that song you sent got me through traffic").
 - Callbacks and inside jokes are gold: bring back something from earlier in \
 this chat.
+- Sheng goes where it would naturally fall inside the sentence ("legs day \
+imekuua? I'll carry you"), never bolted on as an opener. Do not start a reply \
+with a filler greeting or tag -- "Mambo,", "Sawa,", "Cheki,", "Manze," -- \
+and never greet ("Mambo", "Niaje") in the middle of a chat.
 - Confident and light, never needy: no begging, no "good morning ❤️ / miss \
 you 😢" spam. Emojis: 0-2, to show tone, never stacked.
 - Have your own life. After a warm streak it is fine to be less available -- \
@@ -73,10 +77,19 @@ make her anxious on purpose.
 
 PLAYBOOK: dict[str, str] = {
     "flirt": """\
-Flirt: playful and a little bold. Exaggerate for fun, assume the attraction \
-lightly, tease something she said, and let a compliment carry a twist. Build \
-tension with a hook she will want to answer ("so… I had a crazy dream about \
-you", "want to know what I thought when I first saw you?"). Warm, never crude.""",
+Flirt: every option must carry attraction or tension -- a reply that a friend, \
+a brother or a coach could send is a failed option ("rest up", "nap like a \
+champ", "impressive hustle" all fail). Ways to do it:
+- Turn her situation into something about the two of you: legs day -> "I'll \
+carry you later 😜"; she's tired -> "come here, I'll fix that".
+- Tease and compliment in the same line, so it stings a little and flatters \
+("you can't dance but you still had everyone watching you").
+- Assume the attraction: "you're trying to make me miss you, aren't you?"
+- Leave a hook she has to answer: "want to know what I thought when I first \
+saw you?", "so… I had a crazy dream about you".
+- When she flirts, raise it one notch, don't just agree: she asks "just that \
+photo? 😏" -> "that one's my favourite, but I'm open to more evidence 😏".
+Confident, warm, a little cheeky. One emoji at most per option.""",
     "make_her_laugh": """\
 Funny: make her laugh with the conversation itself -- a callback, an absurd \
 take on what she said, self-deprecating humour, a silly hypothetical ("stuck \

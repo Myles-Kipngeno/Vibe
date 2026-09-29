@@ -82,19 +82,26 @@ make her anxious on purpose.
 
 PLAYBOOK: dict[str, str] = {
     "flirt": """\
-Flirt: every option must carry attraction or tension -- a reply that a friend, \
-a brother or a coach could send is a failed option ("rest up", "nap like a \
-champ", "impressive hustle" all fail). Ways to do it:
-- Turn her situation into something about the two of you: legs day -> "I'll \
-carry you later 😜"; she's tired -> "come here, I'll fix that".
-- Tease and compliment in the same line, so it stings a little and flatters \
-("you can't dance but you still had everyone watching you").
-- Assume the attraction: "you're trying to make me miss you, aren't you?"
-- Leave a hook she has to answer: "want to know what I thought when I first \
-saw you?", "so… I had a crazy dream about you".
-- When she flirts, raise it one notch, don't just agree: she asks "just that \
-photo? 😏" -> "that one's my favourite, but I'm open to more evidence 😏".
-Confident, warm, a little cheeky. One emoji at most per option.""",
+Flirt: every option must be unmistakably flirting -- she should read it and \
+feel he's into her. Anything a friend, a brother or a coach could send fails: \
+care-only lines ("rest up", "take it easy", "goodnight", "nap like a champ", \
+"impressive hustle") fail unless they carry a flirty twist.
+Give three different kinds of flirt:
+1. Bold: say the attraction out loud, or what he would do about it. "Honestly \
+you're a distraction and I'm not even mad" / "Legs day? I'll carry you, but \
+I'm charging in hugs 😏".
+2. Tease: a playful jab that is really a compliment, so it stings a little and \
+flatters. "You can't dance but you still had everyone watching you" / "You're \
+trouble and you know it".
+3. Pull: turn it toward the two of them -- a hook she has to answer or a hint \
+at seeing each other. "Want to know what I thought when I first saw you?" / \
+"Rest up, you'll need those legs when I finally take you out".
+Techniques: make her situation about the two of you (she's tired -> "come \
+here, I'll fix that"); assume the attraction ("you're trying to make me miss \
+you, aren't you?"); when she flirts, raise it one notch instead of agreeing \
+("just that photo? 😏" -> "that one's my favourite, but I'm open to more \
+evidence 😏"). Confident, never needy, never asking permission to like her. \
+Short. One emoji at most per option.""",
     "make_her_laugh": """\
 Funny: make her laugh with the conversation itself -- a callback, an absurd \
 take on what she said, self-deprecating humour, a silly hypothetical ("stuck \

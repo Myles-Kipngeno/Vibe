@@ -220,7 +220,7 @@ def test_every_reply_is_coached_with_the_goal_playbook(client):
 
 def test_each_chip_gets_its_own_playbook(client):
     assert "Funny: make her laugh" in _prompt_for(client, goal="make_her_laugh")
-    assert "Flirt: every option must carry attraction or tension" in _prompt_for(client, goal="flirt")
+    assert "Flirt: every option must be unmistakably flirting" in _prompt_for(client, goal="flirt")
 
 
 def test_no_coaching_past_a_boundary_or_when_ending(client):
@@ -257,8 +257,9 @@ def test_sheng_goes_inside_the_sentence_and_flirt_must_carry_tension(client):
     prompt = _prompt_for(client, goal="flirt")
     assert 'never bolted on as an opener' in prompt
     assert '"Mambo,", "Sawa,", "Cheki,"' in prompt
-    assert "every option must carry attraction or tension" in prompt
-    assert "I'll carry you later" in prompt
+    assert "every option must be unmistakably flirting" in prompt
+    assert "Give three different kinds of flirt" in prompt
+    assert "I'm charging in hugs" in prompt
 
 
 def test_a_busy_server_gets_one_retry():

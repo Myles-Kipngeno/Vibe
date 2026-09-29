@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from ..config import get_settings
+from ..config import Settings, get_settings
 from .base import LLMProvider, ProviderError
 from .mock import MockProvider
 
@@ -17,6 +17,18 @@ def get_provider() -> LLMProvider:
     if choice == "mock":
         return MockProvider()
 
+    primary = _build(choice, settings)
+    # Every other free-tier provider with a key stands by, in order, for when
+    # the main one is rate-limited or down. One key set means no fallback.
+    backups = [_build(name, settings) for name in settings.fallback_providers]
+    if not backups:
+        return primary
+    from .fallback import FallbackProvider
+
+    return FallbackProvider([primary, *backups])
+
+
+def _build(choice: str, settings: Settings) -> LLMProvider:
     if choice == "anthropic":
         from .anthropic_provider import AnthropicProvider
 
@@ -30,16 +42,19 @@ def get_provider() -> LLMProvider:
 
     if choice in PRESETS or choice == "openai_compatible":
         preset_url, _ = PRESETS.get(choice, ("", ""))
-        base_url = settings.ai_base_url or preset_url
+        base_url = (settings.ai_base_url if choice == settings.resolved_provider else None) or preset_url
         if not base_url:
             raise ProviderError("AI_PROVIDER=openai_compatible needs AI_BASE_URL.")
-        if not settings.ai_api_key and choice != "ollama":
-            raise ProviderError(f"AI_PROVIDER={choice} needs an API key in AI_API_KEY.")
+        key = settings.key_for(choice)
+        if not key and choice != "ollama":
+            raise ProviderError(
+                f"AI_PROVIDER={choice} needs an API key in {choice.upper()}_API_KEY (or AI_API_KEY)."
+            )
         return OpenAICompatibleProvider(
             name=choice,
             base_url=base_url,
-            model=settings.model,
-            api_key=settings.ai_api_key,
+            model=settings.model_for(choice),
+            api_key=key,
             max_tokens=min(settings.max_tokens, 1500),
         )
 

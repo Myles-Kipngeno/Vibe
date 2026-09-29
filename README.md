@@ -256,6 +256,12 @@ through `providers/openai_compatible.py`:
 
 `AI_MODEL` overrides the default model; model names change often.
 
+**Set two keys and the second one stands by.** With `GROQ_API_KEY` and
+`GEMINI_API_KEY` both set, Groq answers, and when it is rate-limited or down
+Gemini answers instead, so the phone keeps getting real replies rather than
+templates. `/api/health` lists what stands by. Each provider only ever
+receives its own key.
+
 `backend/.env` is git-ignored. Never put a key in frontend code or in a commit.
 
 Switching providers is an environment change, not a code change — add a class in

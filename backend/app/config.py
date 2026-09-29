@@ -63,6 +63,10 @@ def is_local_origin(origin: str) -> bool:
     return host in LOCAL_HOSTS
 
 
+# The free-tier providers, in the order they are tried.
+FREE_TIER_ORDER: tuple[str, ...] = ("groq", "gemini", "openrouter")
+
+
 @dataclass(frozen=True)
 class Settings:
     provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "auto"))
@@ -171,6 +175,34 @@ class Settings:
         from .providers.openai_compatible import PRESETS
 
         return PRESETS.get(self.resolved_provider, ("", ""))[1]
+
+    def key_for(self, provider: str) -> str | None:
+        """That provider's own key (GEMINI_API_KEY for gemini), else AI_API_KEY.
+
+        Each provider only ever gets its own key: with several set, a Groq key
+        must never be sent to Google.
+        """
+        own = (os.getenv(f"{provider.upper()}_API_KEY") or "").strip()
+        if own:
+            return own
+        generic = (os.getenv("AI_API_KEY") or "").strip()
+        return generic if generic and provider == self.resolved_provider else None
+
+    def model_for(self, provider: str) -> str:
+        """GEMINI_MODEL etc., else AI_MODEL for the main provider, else the default."""
+        own = (os.getenv(f"{provider.upper()}_MODEL") or "").strip()
+        if own:
+            return own
+        if provider == self.resolved_provider and self.model_override:
+            return self.model_override
+        from .providers.openai_compatible import PRESETS
+
+        return PRESETS.get(provider, ("", ""))[1]
+
+    @property
+    def fallback_providers(self) -> list[str]:
+        """Other free-tier providers with a key, tried in order when the main one fails."""
+        return [p for p in FREE_TIER_ORDER if p != self.resolved_provider and self.key_for(p)]
 
 
 def exposure_error(settings: "Settings") -> str:

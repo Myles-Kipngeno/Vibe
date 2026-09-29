@@ -300,8 +300,8 @@ def test_gemini_is_asked_to_think_briefly_and_uses_a_current_model():
 
 def test_language_is_kept_simple_and_varied(client):
     prompt = _prompt_for(client, goal="flirt")
-    assert "simple and cool, never trying hard" in prompt
-    assert "one can be plain Kiswahili" in prompt
+    assert "mostly English, with just a little Sheng" in prompt
+    assert "At least one option in plain" in prompt
     from app.core.prompts import SYSTEM_PROMPT
 
-    assert "never force slang" in SYSTEM_PROMPT
+    assert "mostly in English with a light touch of Sheng" in " ".join(SYSTEM_PROMPT.split())

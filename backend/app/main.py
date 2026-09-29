@@ -115,6 +115,12 @@ def health() -> HealthResponse:
             "Reply generation sends the conversation text to the configured AI "
             "provider."
         )
+    backups = provider.describe().get("fallbacks") or []
+    if backups:
+        notes.append(
+            f"If {provider.name} is busy or down, replies come from "
+            + ", then ".join(backups) + "."
+        )
     warnings: list[str] = []
     key = settings.anthropic_api_key
     if provider.name == "anthropic" and key and not key.startswith("sk-ant-"):

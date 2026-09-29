@@ -1,19 +1,28 @@
 """The coaching guide: how to text to make her smile, and to move things forward.
 
-Distilled, with the user, from the texting and dating videos he chose
-(Chiche, Mistari Monday, Pretty Boy Meir, Zoomology, TrueCam, Jessica Os,
-TSB Magazine, and the flirty-text and funny-question lists). It is written
-as instructions to the model and goes into every generation prompt.
+Distilled from the texting and dating videos the user chose (Chiche, Mistari
+Monday, Pretty Boy Meir, Zoomology, TrueCam, Jessica Os, TSB Magazine, and
+the flirty-text and funny-question lists). It is written as instructions to
+the model and goes into every generation prompt.
 
-Deliberately not included, and agreed with the user: love-bombing then
-withdrawing, being mean so kindness feels rare, manufacturing jealousy,
-explicit sexual lines, and persisting after she is annoyed or has said no.
-Those work by knocking her confidence or ignoring her, and they contradict
-the hard rules in prompts.SYSTEM_PROMPT.
+The user asked for everything to be kept, including mean and spicy material,
+and most of it is: roasts and clap-backs (the Savage goal), innuendo (the
+Spicy goal), going cold when she is rude, asking her for a picture, inviting
+again after "I'm busy", pulling back when he wants space, and a reaction for
+every mood she shows.
 
-The reference lines show energy and shape. The model is told to adapt them
-to what she actually said, never to paste them -- the whole guide points at
-the same thing: a line tied to her beats any line from a video.
+Four things are not included, and the user was told so plainly rather than
+it being presented as agreed:
+- pushing on after she says no or that she has someone (her consent, and the
+  hard rule in prompts.SYSTEM_PROMPT);
+- scripts engineered to make her insecure or hooked: love-bombing then
+  withdrawing, manufacturing jealousy, negging as a technique;
+- fully explicit sexual messages (the product's own line; Spicy goes up to it);
+- one line from a video that jokes about the slave trade.
+
+The reference lines show energy and shape. The model adapts them to what she
+actually said and never pastes them: a line tied to her beats any line from
+a video.
 """
 
 from __future__ import annotations
@@ -29,19 +38,38 @@ open and fun to answer, never "wyd" or "how was your day".
 went better?") -- it gets a real answer instead of "fine".
 - Show interest and warmth, not check-ins. Affection builds; "just checking \
 in" fades.
-- Compliment her wit, taste, energy or something she did more than her body. \
+- Compliment her wit, taste, energy or something she did as well as her looks. \
 Hang a compliment on an event ("that song you sent got me through traffic").
 - Callbacks and inside jokes are gold: bring back something from earlier in \
 this chat.
-- Confident and light, never needy: no begging, no double-texting energy, no \
-"good morning ❤️ / miss you 😢" spam. Emojis: 0-2, to show tone, never stacked.
+- Confident and light, never needy: no begging, no "good morning ❤️ / miss \
+you 😢" spam. Emojis: 0-2, to show tone, never stacked.
+- Have your own life. After a warm streak it is fine to be less available -- \
+reply when he genuinely has time, and let her come to him sometimes.
 - Bold is attractive when it is playful: an over-the-top compliment with a \
 wink ("I had compliments ready but they evaporated") lands better than a \
 careful one.
 - When she is laughing or engaged, that is the moment to move toward a plan; \
 good moods fade.
-- If she says no or has someone, exit with style and warmth ("Lucky guy. \
-Have a good one 😊") -- never argue, never keep pushing."""
+- "I'm busy" or "not today" is not a no: accept it lightly and invite again \
+another day, casually. A clear no, "stop", or "I have someone" is the end -- \
+exit with style ("Lucky guy. Have a good one 😊"), never push."""
+
+WHEN_SHE = """\
+Match his reply to her mood:
+- Rude or mean for no reason: do not grovel. Clap back with a playful jab, or \
+go short and cool ("okay 😂") and let her come back.
+- Teasing or roasting him: roast back harder, with a smile. Never get defensive.
+- Dry replies ("ok", "lol", "hmm"): stop asking questions. Change the energy \
+with a bold tease or a callback -- or pull back and let the chat rest.
+- Slow to reply or left him on read: no double-texting, no "?". Leave it, or \
+one light message later that stands on its own.
+- Jealous ("who's she?"): tease her about it or reassure lightly -- never \
+make her anxious on purpose.
+- Upset with him: own his part in one short line, no speeches, no excuses.
+- Sad or stressed: drop the flirting, be warm and present.
+- Excited or happy: match the energy, hype her up.
+- Flirting back or getting suggestive: meet her level, one step at a time."""
 
 PLAYBOOK: dict[str, str] = {
     "flirt": """\
@@ -58,6 +86,16 @@ setup. Humour first, flirting optional.""",
 Playful: light challenge and teasing. Turn what she said into a game or a \
 dare ("prove it", "bold of you to assume", "guess the emoji next to your \
 name in my phone"). Keep it clearly affectionate.""",
+    "savage": """\
+Savage: roast, sass and clap back. Mean is allowed when it is funny: mock \
+what she said, call out her excuse, act unbothered, flip her tease back on \
+her twice as hard. Aim at what she said or did, not at her looks or her \
+worth, and keep one wink in it so she laughs instead of leaving.""",
+    "spicy": """\
+Spicy: suggestive, teasing and heated -- innuendo, double meanings, \
+"you're dangerous", hinting at what he would do. Go exactly as far as she \
+has already gone and one step more at most; if she has not flirted back \
+yet, keep it to a bold tease. Suggestive, never explicit.""",
     "ask_out": """\
 Ask her out: at least two of the options must be an actual invitation, not a \
 hint. Make it specific and easy to say yes to: a real activity, ideally tied \
@@ -99,26 +137,41 @@ REFERENCE_LINES = """\
 - "Got great news and guess what, you're the only one I wanna tell."
 - "Thinking about the story you told me. When do I get to hear the rest?"
 - "What are you doing this weekend, besides seeing me?"
+- "So… I had a crazy dream about you."
+- "Missing that face. Send me a picture 😏"
 - "You're stealing my sleep now and it's starting to bother me 😏"
 - "Someone's going to win you over someday. Why not let me try?"
 - "Tell people you've been robbed of your heart."
+- "Can I call you mine?"
 - "March was bad, April looks great, can we go out in May?"
 - "They call me the king of algebra, I'll make your ex disappear 😂"
 - "Do you watch Friends? Will you be my lobster?"
 - "Text so we can spam emojis, or call so I can hear you laugh?"
 - "Since you love [thing she mentioned], we should do it together. Saturday?\""""
 
+# Only for Spicy, and only as far as she has gone.
+SPICY_LINES = """\
+- "I'm rushing too… to get you home 😏"
+- "I'd kiss you in the rain so you get wet twice 😌"
+- "It's not Christmas, but if you jingle my bells…"
+- "If you ever want to get rid of extra sugar, I know the most natural way 😏"
+- "I have some skills that can't be talked about, only performed."
+- "I have a few fantasies about you. They all start with a candlelight dinner.\""""
+
 
 def coaching_section(goal: str) -> str:
-    """The guide, the playbook for this goal, and the reference lines."""
+    """The guide, how to react to her mood, this goal's playbook, and the lines."""
     play = PLAYBOOK.get(goal, PLAYBOOK["keep_flowing"])
+    lines = REFERENCE_LINES + ("\n" + SPICY_LINES if goal == "spicy" else "")
     return (
         "## Coaching\n"
         + GUIDE
+        + "\n\n"
+        + WHEN_SHE
         + "\n\n"
         + play
         + "\n\nReference lines -- the energy he likes. Adapt one to what she "
         "actually said if it fits; never paste one as-is, and skip them when "
         "none fits:\n"
-        + REFERENCE_LINES
+        + lines
     )

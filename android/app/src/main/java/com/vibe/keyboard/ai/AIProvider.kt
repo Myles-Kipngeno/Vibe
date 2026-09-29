@@ -28,6 +28,8 @@ enum class ReplyIntent {
 enum class ReplyGoal(val backendId: String, val label: String) {
     FLIRT("flirt", "Flirt"),
     FUNNY("make_her_laugh", "Funny"),
+    SAVAGE("savage", "Savage"),
+    SPICY("spicy", "Spicy"),
     PLAYFUL("playful", "Playful"),
     ASK_OUT("ask_out", "Ask out"),
     DEEPER("get_to_know", "Deeper"),

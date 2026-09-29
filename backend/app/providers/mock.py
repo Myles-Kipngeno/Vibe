@@ -71,6 +71,16 @@ _TEMPLATES: dict[str, list[tuple[str, str, str]]] = {
         ("Hii convo imekuwa poa. Tuongee tena", "This was a good one. Let us pick it up again", "warm close"),
         ("Niko na kitu nafanya, lakini tuongee baadaye", "I have something to handle, but let us talk later", "honest close"),
     ],
+    "savage": [
+        ("Wacha kujifanya, hata wewe unajua uko wrong 😂", "Stop pretending, even you know you're wrong 😂", "playful roast"),
+        ("Hiyo attitude ni ya nani? Sio yako surely", "Whose attitude is that? Can't be yours surely", "sassy clap back"),
+        ("Sawa boss, nitangoja ukue 😏", "Okay boss, I'll wait for you to grow up 😏", "cool and unbothered"),
+    ],
+    "spicy": [
+        ("Ukiendelea hivi nitakuja kukuchukua mwenyewe 😏", "Keep talking like that and I'm coming to get you myself 😏", "bold tease"),
+        ("Nimekuwa na mawazo mbaya kukuhusu leo 😌", "I've had some bad thoughts about you today 😌", "suggestive hook"),
+        ("Hiyo sauti yako ingefaa kuwa illegal", "That voice of yours should be illegal", "heated compliment"),
+    ],
     "next_day": [
         ("Morning 😊 ulilala poa?", "Morning 😊 hope you slept well", "simple and low pressure"),
         ("Niaje, umeamka aje leo?", "Hey, how did you wake up today?", "light check-in"),

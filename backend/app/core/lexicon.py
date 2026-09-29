@@ -296,4 +296,6 @@ CONVERSATION_GOALS: dict[str, str] = {
     "comfort": "Comfort or support",
     "end_naturally": "End the conversation naturally",
     "next_day": "Continue tomorrow",
+    "savage": "Clap back / roast",
+    "spicy": "Turn up the heat",
 }

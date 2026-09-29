@@ -185,7 +185,7 @@ fun ConnectScreen(onBack: () -> Unit) {
 
             Section("What gets sent") {
                 PrivacyLine("Only when a suggestion is asked for: the recent messages of that chat, and the memories that bear on the message.")
-                PrivacyLine("Never what you type, and nothing from password or incognito fields.")
+                PrivacyLine("Never a message you're still typing, and nothing from password or incognito fields.")
                 PrivacyLine("Your server passes it to its model provider. Free tiers have their own data terms, so check them.")
                 if (saved.isConfigured) {
                     PillButton("Disconnect", filled = false, modifier = Modifier.padding(top = 8.dp)) {

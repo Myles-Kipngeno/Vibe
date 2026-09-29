@@ -162,6 +162,11 @@ fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Uni
                     lineHeight = 18.sp,
                     color = VibeColors.TextSecondary,
                 )
+                ToggleRow(
+                    title = "Keep picked chats up to date",
+                    detail = "When you've picked a chat, the messages you send in it are added to its memory, like the messages you copy. Stays on this phone.",
+                    checked = prefs.rememberSent,
+                ) { scope.launch { settings.setRememberSent(it) } }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 12.dp)) {
                     PillButton("Import a chat", filled = true, onClick = onImport)
                     PillButton("See memory", filled = false, onClick = onMemory)
@@ -213,7 +218,7 @@ fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Uni
 
             Section("Privacy") {
                 PrivacyLine("Runs on this phone until you connect it to your own server. Then only a suggestion request is sent, and only there.")
-                PrivacyLine("A keyboard can't see your chats. Vibe reads what you copy, what you import, and the message box, and only when you ask.")
+                PrivacyLine("A keyboard can't see your chats. Vibe reads what you copy and what you import, and, in a chat you picked, the messages you send.")
                 PrivacyLine("Switches off in password and incognito fields.")
                 PrivacyLine("Chat memory is stored on this phone, excluded from backups, and kept per chat. Forget any of it any time.")
                 Spacer(Modifier.height(8.dp))

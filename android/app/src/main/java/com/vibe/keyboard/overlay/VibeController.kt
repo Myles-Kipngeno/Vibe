@@ -243,6 +243,11 @@ class VibeController(
             safely { session.deselect() }
             refreshStatus()
             note = "Different chat? ${name ?: "Chat"} memory is off"
+        } else {
+            // The chat is still going on after the import: what was copied
+            // joins its history now, so the next reply knows it too.
+            off { safely { session.append(convo.messages, convo.theirNames) } }
+            refreshStatus()
         }
         val bundle = off { safely { session.contextFor(convo) } } ?: ReplyBundle(ReplyContext.None, memory.keys())
         var signal = ContextDetector.detect(theirs.text, hourOfDay(), bundle.knownKeys)
@@ -563,6 +568,21 @@ class VibeController(
         safely { session.clearMemory() } ?: return failStore()
         refreshStatus()
         openMemory()
+    }
+
+    /** Also record what the user sends in a picked chat. Setting; on by default. */
+    var rememberSent: Boolean = true
+
+    /**
+     * The keyboard saw the message box empty right after the user wrote
+     * something: it was sent. It joins the picked chat's history, so Vibe
+     * knows both sides of the conversation that followed the import.
+     */
+    fun onMessageSent(text: String) {
+        if (!rememberSent || text.isBlank()) return
+        scope.launch {
+            if (off { safely { session.recordSent(text) } } == true) refreshStatus()
+        }
     }
 
     // --- Session ----------------------------------------------------------

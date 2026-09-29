@@ -37,6 +37,8 @@ _GOAL_WORDS: dict[str, tuple[str, ...]] = {
     "comfort": ("comfort", "support", "bad", "rough", "sad", "difficult"),
     "end_naturally": ("end", "close", "wrap", "goodbye", "exit"),
     "next_day": ("morning", "next day", "follow", "again"),
+    "savage": ("savage", "roast", "clap", "sass", "comeback"),
+    "spicy": ("spicy", "heat", "tease", "suggestive", "flirt"),
 }
 
 _MIX_BANDS: tuple[tuple[float, str], ...] = (

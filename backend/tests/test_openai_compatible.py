@@ -228,9 +228,26 @@ def test_no_coaching_past_a_boundary_or_when_ending(client):
     assert "## Coaching" not in _prompt_for(client, action="stop")
 
 
-def test_the_left_out_tactics_are_not_in_the_guide():
-    from app.core.coaching import GUIDE, PLAYBOOK, REFERENCE_LINES
+def test_savage_and_spicy_are_real_goals_with_their_own_playbooks(client):
+    assert client.get("/api/conversation/goals").json()["savage"] == "Clap back / roast"
+    savage = _prompt_for(client, goal="savage")
+    assert "Savage: roast, sass and clap back" in savage
+    assert "wet twice" not in savage  # innuendo lines only for Spicy
+    spicy = _prompt_for(client, goal="spicy")
+    assert "Spicy: suggestive" in spicy and "wet twice" in spicy
 
-    text = (GUIDE + " ".join(PLAYBOOK.values()) + REFERENCE_LINES).lower()
-    for banned in ("jealous", "love bomb", "send me a picture", "wet twice", "ignore her"):
+
+def test_every_prompt_says_how_to_react_to_her_mood(client):
+    prompt = _prompt_for(client)
+    assert "Rude or mean for no reason" in prompt
+    assert "\"I'm busy\" or \"not today\" is not a no" in prompt
+    assert "Send me a picture" in prompt
+
+
+def test_what_is_still_excluded_stays_out():
+    from app.core.coaching import GUIDE, PLAYBOOK, REFERENCE_LINES, SPICY_LINES, WHEN_SHE
+
+    text = (GUIDE + WHEN_SHE + " ".join(PLAYBOOK.values()) + REFERENCE_LINES + SPICY_LINES).lower()
+    for banned in ("love bomb", "make her jealous", "slave", "give you the d"):
         assert banned not in text
+    assert "never push" in text and "never explicit" in text

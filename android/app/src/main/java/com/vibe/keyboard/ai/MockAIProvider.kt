@@ -124,6 +124,12 @@ class MockAIProvider(
         ReplyGoal.FUNNY -> pick(sheng,
             en = listOf("I'm telling my lawyer about this 😂", "Okay that's going in my diary 😂", "Not you exposing me like this 😭"),
             sh = listOf("Nitampigia lawyer wangu 😂", "Aki hii naandika kwa diary 😂", "Usinianike hivi 😭"))
+        ReplyGoal.SAVAGE -> pick(sheng,
+            en = listOf("Stop pretending, even you know you're wrong 😂", "Whose attitude is that? Can't be yours surely", "Okay boss, I'll wait for you to grow up 😏"),
+            sh = listOf("Wacha kujifanya, hata wewe unajua uko wrong 😂", "Hiyo attitude ni ya nani? Sio yako surely", "Sawa boss, nitangoja ukue 😏"))
+        ReplyGoal.SPICY -> pick(sheng,
+            en = listOf("Keep talking like that and I'm coming to get you myself 😏", "I've had some bad thoughts about you today 😌", "That voice of yours should be illegal"),
+            sh = listOf("Ukiendelea hivi nitakuja kukuchukua mwenyewe 😏", "Nimekuwa na mawazo mbaya kukuhusu leo 😌", "Hiyo sauti yako ingefaa kuwa illegal"))
         ReplyGoal.PLAYFUL -> pick(sheng,
             en = listOf("Hmm, and what do I get for that? 😏", "Bold of you to assume 😌", "Prove it then 👀"),
             sh = listOf("Hmm, na mimi napata nini? 😏", "Unajiamini sana 😌", "Basi thibitisha 👀"))

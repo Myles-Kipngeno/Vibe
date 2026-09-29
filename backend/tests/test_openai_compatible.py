@@ -296,3 +296,12 @@ def test_gemini_is_asked_to_think_briefly_and_uses_a_current_model():
     OpenAICompatibleProvider("gemini", "https://g.example/v1", "m", "k", client=client).generate("s", "u", GenerationResult)
     assert seen["reasoning_effort"] == "low"
     assert PRESETS["gemini"][1] != "gemini-2.5-flash"
+
+
+def test_language_is_kept_simple_and_varied(client):
+    prompt = _prompt_for(client, goal="flirt")
+    assert "simple and cool, never trying hard" in prompt
+    assert "one can be plain Kiswahili" in prompt
+    from app.core.prompts import SYSTEM_PROMPT
+
+    assert "never force slang" in SYSTEM_PROMPT

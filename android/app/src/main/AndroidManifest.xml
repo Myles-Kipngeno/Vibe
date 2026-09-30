@@ -53,6 +53,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Android's answer when Vibe installs its own update: confirm, done, or why not. -->
+        <receiver
+            android:name=".app.InstallResultReceiver"
+            android:exported="false" />
+
         <!-- Share Vibe hands the app file to WhatsApp and friends through this. -->
         <provider
             android:name="androidx.core.content.FileProvider"

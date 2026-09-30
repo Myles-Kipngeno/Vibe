@@ -10,6 +10,13 @@
         typed is sent at all: only messages the user copied, imported or scanned.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!--
+        Only for the Update button: Vibe downloads its own new version from the
+        project's GitHub release and hands it to Android's installer. Android
+        still asks the user once before allowing it, and shows the installer
+        screen every time.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"

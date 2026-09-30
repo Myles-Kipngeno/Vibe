@@ -15,8 +15,12 @@ android {
         // copied just now from something that has sat on the clipboard for a day.
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI publishes each build with a higher number (the workflow run), so the
+        // phone accepts it as an update. Local builds stay at 1; install those
+        // with `adb install -r -d` once a published build is on the phone.
+        val build = System.getenv("VIBE_VERSION_CODE")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "0.2.$build"
     }
 
     buildTypes {

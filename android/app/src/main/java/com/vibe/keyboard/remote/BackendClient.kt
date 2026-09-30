@@ -108,6 +108,16 @@ data class SupabaseSession(
     @SerialName("expires_in") val expiresIn: Long = 3600,
 )
 
+/** A new account: signed in straight away, or waiting for the user to confirm their email. */
+data class SignUpResult(val session: SupabaseSession?, val email: String)
+
+@Serializable
+private data class SignUpResponse(
+    @SerialName("access_token") val accessToken: String? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+    @SerialName("expires_in") val expiresIn: Long = 3600,
+)
+
 @Serializable
 private data class PasswordGrant(val email: String, val password: String)
 
@@ -166,6 +176,23 @@ class BackendClient(
             json.encodeToString(PasswordGrant.serializer(), PasswordGrant(email.trim(), password)),
         )
         decode(r, SupabaseSession.serializer())
+    }
+
+    /**
+     * Creates an account. When the project asks new users to confirm their
+     * email (Vibe's does), there is no session yet: the user confirms, then
+     * signs in.
+     */
+    suspend fun signUp(supabaseUrl: String, anonKey: String, email: String, password: String): SignUpResult = io {
+        val r = http.send(
+            "POST", "${supabaseUrl.trimEnd('/')}/auth/v1/signup", authHeaders(anonKey),
+            json.encodeToString(PasswordGrant.serializer(), PasswordGrant(email.trim(), password)),
+        )
+        val body = decode(r, SignUpResponse.serializer())
+        val session = if (body.accessToken != null && body.refreshToken != null) {
+            SupabaseSession(body.accessToken, body.refreshToken, body.expiresIn)
+        } else null
+        SignUpResult(session, email.trim())
     }
 
     suspend fun refresh(supabaseUrl: String, anonKey: String, refreshToken: String): SupabaseSession = io {

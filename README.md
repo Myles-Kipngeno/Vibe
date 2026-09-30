@@ -39,6 +39,22 @@ for a practice chat covering every card: suggestion, needs context, picture
 request, winding down, a boundary, and a message it deliberately ignores.
 **Import a chat** takes a WhatsApp export and shows what Vibe learned from it.
 
+### Updating the app on the phone, without a cable
+
+Every change to `android/` that reaches `main` is built, tested and published
+by GitHub (`.github/workflows/android-release.yml`) at one fixed link:
+
+**<https://github.com/Myles-Kipngeno/Vibe/releases/download/app-latest/vibe.apk>**
+
+Open it on the phone, tap the download, tap **Install**. It installs over the
+existing app and keeps its data, because it is signed with the same key as the
+builds made on the PC (stored as the `ANDROID_SIGNING_KEYSTORE_B64` secret).
+The version is at the bottom of the app's home screen. Changes to *replies*
+(the server) need no install at all -- Render deploys those.
+
+Once a published build is on the phone, a build from the PC has a lower
+version number: install it with `adb install -r -d`.
+
 ### What a keyboard can and cannot see
 
 A keyboard sees the box it is typing into, and the clipboard (Android lets

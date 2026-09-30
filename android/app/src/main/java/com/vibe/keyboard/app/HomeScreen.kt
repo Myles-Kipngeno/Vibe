@@ -240,7 +240,8 @@ fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Uni
             }
 
             Text(
-                "Without a connected server, suggestions come from built-in templates and are labelled PREVIEW.",
+                "Without a connected server, suggestions come from built-in templates and are labelled PREVIEW.\n" +
+                    "Vibe ${appVersion(context)} · updates: github.com/Myles-Kipngeno/Vibe/releases",
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
                 color = VibeColors.TextTertiary,
@@ -448,6 +449,9 @@ fun PillButton(
         )
     }
 }
+
+private fun appVersion(context: Context): String =
+    runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
 
 private fun isVibeEnabled(context: Context): Boolean =
     context.getSystemService(InputMethodManager::class.java)

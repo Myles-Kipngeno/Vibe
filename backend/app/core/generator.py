@@ -24,7 +24,7 @@ from ..schemas import (
     Suggestion,
     SuggestResponse,
 )
-from . import example_library, feedback_signal, personal_context, rhythm
+from . import example_library, feedback_signal, personal_context, rhythm, selector
 from .prompts import SYSTEM_PROMPT, build_user_prompt
 from .style_profile import observe_their_style, style_brief
 
@@ -160,11 +160,14 @@ def generate(
         },
     )
 
+    # Stage 3: from everything the model drafted, show the best 1-3 that go in
+    # different directions. Anything already shown is out before choosing.
     seen = {a.strip().lower() for a in avoid}
+    fresh = [c for c in result.suggestions if c.text.strip() and c.text.strip().lower() not in seen]
     suggestions: list[Suggestion] = []
-    for item in result.suggestions:
+    for item in selector.select(fresh):
         text = item.text.strip()
-        if not text or text.lower() in seen:
+        if text.lower() in seen:
             continue
         seen.add(text.lower())
         suggestions.append(

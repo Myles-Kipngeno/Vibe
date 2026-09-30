@@ -271,6 +271,19 @@ class ConversationMemoryTest {
         assertTrue("Brian" in record.summary!!.people)
     }
 
+    @Test fun `lines she laughed at become callback material`() = runTest {
+        store.save(sarah())
+        val c = controller()
+        c.onInputStarted("com.whatsapp", false)
+        c.selectConversation("sarah-1")
+        c.onMessageSent("I'd carry you but I'm charging in hugs")
+        advanceUntilIdle()
+        c.onCopied("😂😂 stop it", automatic = true)
+        advanceUntilIdle()
+        repeat(9) { i -> c.onMessageSent("filler message number $i here") ; advanceUntilIdle() }
+        assertTrue("I'd carry you but I'm charging in hugs" in store.get("sarah-1")!!.summary!!.callbacks)
+    }
+
     // --- Retrieval and missing context -------------------------------------
 
     @Test fun `a person seen earlier in the history is not asked about`() = runTest {

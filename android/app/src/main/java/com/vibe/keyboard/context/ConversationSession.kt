@@ -4,6 +4,7 @@ import com.vibe.keyboard.ai.ReplyContext
 import com.vibe.keyboard.engine.ChatMessage
 import com.vibe.keyboard.engine.Conversation
 import com.vibe.keyboard.engine.Speaker
+import com.vibe.keyboard.engine.TextStats
 import com.vibe.keyboard.memory.ConversationRecord
 import com.vibe.keyboard.memory.ConversationStore
 import com.vibe.keyboard.memory.ConversationSummarizer
@@ -12,6 +13,8 @@ import com.vibe.keyboard.memory.MemoryItem
 import com.vibe.keyboard.memory.MemoryKind
 import com.vibe.keyboard.memory.MemoryRetriever
 import com.vibe.keyboard.memory.MemorySource
+import com.vibe.keyboard.memory.OutcomeTally
+import com.vibe.keyboard.memory.PendingUse
 import com.vibe.keyboard.memory.Retrieved
 import com.vibe.keyboard.memory.StyleSamples
 import com.vibe.keyboard.memory.UserStyleLearner
@@ -172,12 +175,45 @@ class ConversationSession(
         val merged = ContextScanner.mergeTail(record.messages, messages)
         val added = merged.size - record.messages.size
         if (added <= 0) return 0
-        val grown = record.copy(
+        val newMessages = merged.drop(record.messages.size)
+        val grown = scoreOutcome(record, newMessages).copy(
             messages = merged,
             theirNames = (record.theirNames + theirNames).distinct(),
         )
         store.save(refreshed(grown))
         return added
+    }
+
+    /** He used a suggestion of this style; her next message will say how it came back. */
+    fun noteUsed(style: String) {
+        val record = active() ?: return
+        store.save(record.copy(pendingUse = PendingUse(style, now())))
+    }
+
+    /**
+     * Her first message after a used suggestion: did it come back warm --
+     * laughing, flirting, or asking something back -- rather than one word?
+     * Counted per style, as a signal only; it proves nothing about cause.
+     */
+    private fun scoreOutcome(record: ConversationRecord, newMessages: List<ChatMessage>): ConversationRecord {
+        val pending = record.pendingUse ?: return record
+        val hers = newMessages.firstOrNull { it.speaker == Speaker.THEM } ?: return record
+        if (now() - pending.at > OUTCOME_WINDOW_MS) return record.copy(pendingUse = null)
+        val text = hers.text
+        val warm = !TextStats.isLowEffort(text) &&
+            (TextStats.laughRate(listOf(text)) > 0 || '?' in text || FLIRTY.any { it in text })
+        val tally = record.outcomes[pending.style] ?: OutcomeTally()
+        val next = tally.copy(warm = tally.warm + if (warm) 1 else 0, total = tally.total + 1)
+        return record.copy(pendingUse = null, outcomes = record.outcomes + (pending.style to next))
+    }
+
+    /** "Playful 3/4, Flirty 1/3" once a style has been used a few times in this chat. */
+    private fun outcomeNote(record: ConversationRecord?): String? {
+        val seen = record?.outcomes?.filterValues { it.total >= 3 }.orEmpty()
+        if (seen.isEmpty()) return null
+        return "In this chat, after these styles of his, her next message came back warm (laughing, flirting or asking back) -- " +
+            seen.entries.sortedByDescending { it.value.total }.joinToString(", ") { "${it.key.lowercase()} ${it.value.warm}/${it.value.total}" } +
+            ". A signal, not proof: it does not mean those replies caused it."
     }
 
     /** A message the user just sent in the picked chat. Their side of it, as sent. */
@@ -242,6 +278,7 @@ class ConversationSession(
             snippets = retrieved.snippets,
             userStyle = style,
             styleSamples = samples,
+            outcomeNote = outcomeNote(record),
         )
         return ReplyBundle(reply, retrieved.knownKeys + sessionMemory.keys())
     }
@@ -323,5 +360,8 @@ class ConversationSession(
         const val IDLE_EXPIRY_MS = 10 * 60_000L
         const val RECENT_WINDOW = 12
         const val REBUILD_EVERY = 10
+        /** Her reply has to come within this long to be read as a reaction at all. */
+        const val OUTCOME_WINDOW_MS = 12 * HOUR_MS
+        private val FLIRTY = listOf("😏", "😘", "😍", "🥰", "😉", "🙈", "❤", "😚", "🔥")
     }
 }

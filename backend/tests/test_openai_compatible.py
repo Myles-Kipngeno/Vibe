@@ -49,7 +49,7 @@ def test_sends_an_openai_style_request_with_the_key_and_json_mode():
     assert seen["body"]["model"] == "some-model"
     assert seen["body"]["response_format"] == {"type": "json_object"}
     assert seen["body"]["messages"][0]["content"].startswith("system rules")
-    assert "three suggestions" in seen["body"]["messages"][0]["content"]
+    assert "about five candidates" in seen["body"]["messages"][0]["content"]
 
 
 def test_a_code_fence_around_the_json_is_tolerated():
@@ -213,14 +213,14 @@ def _prompt_for(client, goal="keep_flowing", text="haha you actually went there?
 def test_every_reply_is_coached_with_the_goal_playbook(client):
     prompt = _prompt_for(client, goal="ask_out")
     assert "## Coaching" in prompt
-    assert "Tie every message to something in this chat" in prompt
+    assert "FLOW, not interview" in prompt
     assert "at least two of the options must be an actual invitation" in prompt
-    assert "never paste one as-is" in prompt
+    assert "never pasted as-is" in prompt
 
 
 def test_each_chip_gets_its_own_playbook(client):
     assert "Funny: make her laugh" in _prompt_for(client, goal="make_her_laugh")
-    assert "Flirt: every option must be unmistakably flirting" in _prompt_for(client, goal="flirt")
+    assert "Flirt: every candidate must be unmistakably flirting" in _prompt_for(client, goal="flirt")
 
 
 def test_no_coaching_past_a_boundary_or_when_ending(client):
@@ -257,8 +257,8 @@ def test_sheng_goes_inside_the_sentence_and_flirt_must_carry_tension(client):
     prompt = _prompt_for(client, goal="flirt")
     assert 'never bolted on as an opener' in prompt
     assert '"Mambo,", "Sawa,", "Cheki,"' in prompt
-    assert "every option must be unmistakably flirting" in prompt
-    assert "Give three different kinds of flirt" in prompt
+    assert "every candidate must be unmistakably flirting" in prompt
+    assert "Cover different kinds of flirt across the candidates" in prompt
     assert "I'm charging in hugs" in prompt
 
 
@@ -302,7 +302,28 @@ def test_gemini_is_asked_to_think_briefly_and_uses_a_current_model():
 def test_language_is_kept_simple_and_varied(client):
     prompt = _prompt_for(client, goal="flirt")
     assert "mostly English, with just a little Sheng" in prompt
-    assert "At least one option in plain" in prompt
+    assert "At least one candidate in" in prompt
     from app.core.prompts import SYSTEM_PROMPT
 
     assert "mostly in English with a light touch of Sheng" in " ".join(SYSTEM_PROMPT.split())
+
+
+
+# --- Understand -> generate -> select ------------------------------------------------
+
+
+def test_the_system_prompt_asks_for_the_three_stages():
+    from app.core.prompts import SYSTEM_PROMPT
+
+    flat = " ".join(SYSTEM_PROMPT.split())
+    for stage in ("1. UNDERSTAND.", "2. GENERATE.", "3. SELECT."):
+        assert stage in flat
+    assert "No manipulation" in flat
+
+
+def test_the_guide_no_longer_tells_him_to_play_unavailable():
+    from app.core.coaching import GUIDE, WHEN_SHE
+
+    text = (GUIDE + WHEN_SHE).lower()
+    assert "less available" not in text and "let her come to him" not in text
+    assert "flow, not interview" in text

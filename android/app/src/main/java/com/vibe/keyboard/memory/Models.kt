@@ -66,6 +66,8 @@ data class ConversationSummary(
     val firstMessageAt: Long?,
     val lastMessageAt: Long?,
     val builtAt: Long,
+    /** Things he said that she laughed at: callback material, quoted, used sparingly. */
+    val callbacks: List<String> = emptyList(),
 )
 
 /**
@@ -92,7 +94,21 @@ data class ConversationRecord(
     /** When a Goodnight suggestion was used, for a next-morning suggestion. */
     val goodnightAt: Long? = null,
     val morningOffered: Boolean = false,
+    /** The last suggestion he used, waiting to see how her next message comes back. */
+    val pendingUse: PendingUse? = null,
+    /** By reply style ("Flirty", "Playful"...): how often her next message came back warm. */
+    val outcomes: Map<String, OutcomeTally> = emptyMap(),
 )
+
+@Serializable
+data class PendingUse(val style: String, val at: Long)
+
+/**
+ * Signals, not proof: her next message coming back laughing, flirting or
+ * asking back after a style of reply does not mean that reply caused it.
+ */
+@Serializable
+data class OutcomeTally(val warm: Int = 0, val total: Int = 0)
 
 /** The user's own texting style, learned only from their messages. */
 @Serializable

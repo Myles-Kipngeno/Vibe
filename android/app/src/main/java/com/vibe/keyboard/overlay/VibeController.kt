@@ -287,6 +287,13 @@ class VibeController(
         hide()
         afterUse(s.text)
         report(s, s.selected, Verdict.USED)
+        watchOutcome(s)
+    }
+
+    /** Remember the style he used, to see how her next message comes back. */
+    private fun watchOutcome(card: CardState.Suggestion) {
+        val style = card.optionLabels.getOrNull(card.selected)?.takeIf { it.isNotBlank() } ?: return
+        scope.launch { off { safely { session.noteUsed(style) } } }
     }
 
     /** Best effort, off the card's path: the backend learns what the user actually sends. */
@@ -372,6 +379,7 @@ class VibeController(
             _card.value = s.copy(sendIn = null, sent = true, note = "Sent by Auto")
             afterUse(s.text)
             report(s, s.selected, Verdict.USED)
+            watchOutcome(s)
             job = scope.launch {
                 delay(noticeMs)
                 if ((_card.value as? CardState.Suggestion)?.sent == true) hide()
@@ -639,6 +647,7 @@ class VibeController(
                     isPreview = suggestion.isPreview,
                     options = suggestion.options.ifEmpty { listOf(suggestion.text) },
                     optionIds = suggestion.optionIds,
+                    optionLabels = suggestion.optionLabels,
                     goal = goalFor(intent, signal),
                     steerable = intent == ReplyIntent.REPLY || intent == ReplyIntent.CONTINUE,
                     note = note ?: suggestion.note,

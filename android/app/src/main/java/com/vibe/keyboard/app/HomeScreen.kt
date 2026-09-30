@@ -480,9 +480,13 @@ private fun UpdateCard(update: AppUpdate) {
     val scope = rememberCoroutineScope()
     var progress by remember { mutableStateOf<Int?>(null) }
     var problem by remember { mutableStateOf<String?>(null) }
+    // The installer is open. A successful update restarts Vibe and this card
+    // goes away; if the card is still here, the installer stalled.
+    var handedOver by remember { mutableStateOf(false) }
     val label = when {
         progress != null -> "${progress}%"
         problem != null -> "Try again"
+        handedOver -> "Update again"
         else -> "Update"
     }
     val onUpdate = {
@@ -495,6 +499,7 @@ private fun UpdateCard(update: AppUpdate) {
                 progress = 0
                 scope.launch {
                     problem = updater.downloadAndInstall(update.downloadUrl) { progress = it }
+                    handedOver = problem == null
                     progress = null
                 }
             }
@@ -512,7 +517,12 @@ private fun UpdateCard(update: AppUpdate) {
         Column(Modifier.weight(1f)) {
             Text("Update available", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = VibeColors.TextPrimary)
             Text(
-                problem ?: if (updater.canInstall()) {
+                problem ?: if (handedOver) {
+                    // Play Protect scans every app from outside the Play Store; if Android
+                    // stops its process mid-scan, the installer waits for an answer that
+                    // never comes. A second attempt starts a fresh scan.
+                    "If Android stays on \"Installing…\" for more than a minute, close it and tap Update again."
+                } else if (updater.canInstall()) {
                     "Vibe ${update.versionName}. Tap Update, then Install. Your chats and memory stay."
                 } else {
                     "Vibe ${update.versionName}. Android will ask once to let Vibe install updates: allow it, come back, tap Update."

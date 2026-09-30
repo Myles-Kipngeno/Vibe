@@ -61,7 +61,9 @@ import com.vibe.keyboard.settings.VibeSettings
 import com.vibe.keyboard.ui.VibeIcons
 import com.vibe.keyboard.ui.VibeMark
 import com.vibe.keyboard.ui.theme.VibeColors
+import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
+import java.io.File
 import com.vibe.keyboard.remote.AppUpdate
 import com.vibe.keyboard.remote.UpdateChecker
 import kotlinx.coroutines.Dispatchers
@@ -179,6 +181,18 @@ fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Uni
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 12.dp)) {
                     PillButton("Import a chat", filled = true, onClick = onImport)
                     PillButton("See memory", filled = false, onClick = onMemory)
+                }
+            }
+
+            Section("Share Vibe") {
+                Text(
+                    "Send the app to a friend on WhatsApp: they tap it, install, and create their own account in AI replies. Their chats stay theirs.",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = VibeColors.TextSecondary,
+                )
+                PillButton("Share Vibe", filled = true, modifier = Modifier.padding(top = 12.dp)) {
+                    scope.launch { shareVibe(context) }
                 }
             }
 
@@ -509,6 +523,29 @@ private fun UpdateCard(update: AppUpdate) {
         }
         PillButton(label, filled = true, enabled = progress == null, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
     }
+}
+
+/**
+ * Shares the installed app itself. It is copied into a private share folder
+ * first (the installed file can't be handed out directly), then offered to
+ * WhatsApp or anything else as a document.
+ */
+private suspend fun shareVibe(context: Context) {
+    val file = withContext(Dispatchers.IO) {
+        val dir = File(context.cacheDir, "share").apply { mkdirs() }
+        File(context.applicationInfo.sourceDir).copyTo(File(dir, "Vibe.apk"), overwrite = true)
+    }
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.share", file)
+    val send = Intent(Intent.ACTION_SEND)
+        .setType("application/vnd.android.package-archive")
+        .putExtra(Intent.EXTRA_STREAM, uri)
+        .putExtra(
+            Intent.EXTRA_TEXT,
+            "Try Vibe, my texting keyboard 😎 Tap the file and Install (allow installs from WhatsApp if asked). " +
+                "Then open Vibe → AI replies → Create account.",
+        )
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    context.startActivity(Intent.createChooser(send, "Share Vibe").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 private fun installedVersionCode(context: Context): Long =

@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +57,9 @@ fun ConnectScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val saved by store.connection.collectAsState(initial = Connection())
 
-    var url by remember(saved.backendUrl) { mutableStateOf(saved.backendUrl.ifBlank { "http://127.0.0.1:8000" }) }
+    var url by remember(saved.backendUrl) { mutableStateOf(saved.backendUrl.ifBlank { DEFAULT_SERVER }) }
+    var creating by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<String?>(null) }
     var health by remember { mutableStateOf<HealthDto?>(null) }
     var email by remember(saved.email) { mutableStateOf(saved.email) }
     var password by remember { mutableStateOf("") }
@@ -91,6 +94,42 @@ fun ConnectScreen(onBack: () -> Unit) {
                 busy = false
             }
         }
+    }
+
+    fun signUp() {
+        busy = true
+        error = null
+        info = null
+        scope.launch {
+            try {
+                val r = client.signUp(saved.supabaseUrl, saved.anonKey, email, password)
+                val s = r.session
+                if (s != null) {
+                    store.save(
+                        saved.copy(
+                            email = r.email, accessToken = s.accessToken, refreshToken = s.refreshToken,
+                            expiresAt = System.currentTimeMillis() + s.expiresIn * 1000,
+                        ),
+                    )
+                } else {
+                    info = "Account created. Open the confirmation email sent to ${r.email}, tap the link, then come back and sign in."
+                    creating = false
+                }
+                password = ""
+            } catch (e: BackendException) {
+                error = "Couldn't create the account: ${e.message}"
+            } catch (e: Exception) {
+                error = "Couldn't reach the sign-up service."
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    // First open, nothing saved yet: check the default server straight away,
+    // so a friend who just installed Vibe only has to create an account.
+    LaunchedEffect(saved.backendUrl) {
+        if (saved.backendUrl.isBlank() && health == null && !busy) check()
     }
 
     fun signIn() {
@@ -166,13 +205,29 @@ fun ConnectScreen(onBack: () -> Unit) {
             }
 
             if (saved.isConfigured && saved.authRequired) {
-                Section("Sign in") {
-                    Text("The same account as the Vibe web app.", fontSize = 13.sp, color = VibeColors.TextSecondary, modifier = Modifier.padding(bottom = 8.dp))
+                Section(if (creating) "Create account" else "Sign in") {
+                    Text(
+                        if (creating) "New to Vibe? Use any email you can open: you'll confirm it once."
+                        else "The same account as the Vibe web app.",
+                        fontSize = 13.sp, color = VibeColors.TextSecondary, modifier = Modifier.padding(bottom = 8.dp),
+                    )
                     Field(email, onChange = { email = it }, keyboard = KeyboardType.Email, placeholder = "Email")
-                    Field(password, onChange = { password = it }, keyboard = KeyboardType.Password, placeholder = "Password", secret = true, modifier = Modifier.padding(top = 8.dp))
+                    Field(
+                        password, onChange = { password = it }, keyboard = KeyboardType.Password,
+                        placeholder = if (creating) "Password (6+ characters)" else "Password",
+                        secret = true, modifier = Modifier.padding(top = 8.dp),
+                    )
+                    info?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = VibeColors.Accent, modifier = Modifier.padding(top = 8.dp)) }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 10.dp)) {
-                        PillButton("Sign in", filled = true, enabled = !busy && email.isNotBlank() && password.isNotBlank()) { signIn() }
-                        if (saved.accessToken.isNotBlank()) {
+                        val ready = !busy && email.isNotBlank() && password.length >= if (creating) 6 else 1
+                        if (creating) {
+                            PillButton("Create account", filled = true, enabled = ready) { signUp() }
+                            PillButton("I have an account", filled = false) { creating = false; error = null }
+                        } else {
+                            PillButton("Sign in", filled = true, enabled = ready) { signIn() }
+                            if (saved.accessToken.isBlank()) PillButton("Create account", filled = false) { creating = true; error = null; info = null }
+                        }
+                        if (!creating && saved.accessToken.isNotBlank()) {
                             PillButton("Sign out", filled = false) {
                                 scope.launch { store.save(saved.copy(accessToken = "", refreshToken = "", expiresAt = 0)) }
                             }
@@ -197,6 +252,9 @@ fun ConnectScreen(onBack: () -> Unit) {
         }
     }
 }
+
+/** The Vibe server this app ships pointed at; changeable on this screen. */
+const val DEFAULT_SERVER = "https://vibe-api-dpch.onrender.com"
 
 @Composable
 private fun Field(

@@ -23,6 +23,20 @@ android {
         versionName = "0.2.$build"
     }
 
+    // CI signs with the phone's key from an explicit path: Android's default
+    // key location differs between machines, and a build signed with any
+    // other key will not install over the app already on the phone.
+    signingConfigs {
+        getByName("debug") {
+            System.getenv("VIBE_SIGNING_KEYSTORE")?.let { path ->
+                storeFile = file(path)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true

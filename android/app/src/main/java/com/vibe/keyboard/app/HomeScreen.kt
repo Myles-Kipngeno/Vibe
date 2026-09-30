@@ -137,7 +137,7 @@ fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Uni
             // A newer build published on GitHub: one tap opens the download.
             var update by remember { mutableStateOf<AppUpdate?>(null) }
             LaunchedEffect(Unit) { update = UpdateChecker().check(installedVersionCode(context)) }
-            update?.let { UpdateCard(it) { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it.downloadUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+            update?.let { UpdateCard(it) }
 
             TryItCard(onPractice)
 
@@ -460,7 +460,32 @@ fun PillButton(
 }
 
 @Composable
-private fun UpdateCard(update: AppUpdate, onUpdate: () -> Unit) {
+private fun UpdateCard(update: AppUpdate) {
+    val context = LocalContext.current
+    val updater = remember { AppUpdater(context) }
+    val scope = rememberCoroutineScope()
+    var progress by remember { mutableStateOf<Int?>(null) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    val label = when {
+        progress != null -> "${progress}%"
+        problem != null -> "Try again"
+        else -> "Update"
+    }
+    val onUpdate = {
+        if (progress == null) {
+            problem = null
+            if (!updater.canInstall()) {
+                // Android asks once; come back and tap Update again.
+                updater.askInstallPermission()
+            } else {
+                progress = 0
+                scope.launch {
+                    problem = updater.downloadAndInstall(update.downloadUrl) { progress = it }
+                    progress = null
+                }
+            }
+        }
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -473,11 +498,16 @@ private fun UpdateCard(update: AppUpdate, onUpdate: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("Update available", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = VibeColors.TextPrimary)
             Text(
-                "Vibe ${update.versionName}. Tap Update, then Install. Your chats and memory stay.",
-                fontSize = 13.sp, lineHeight = 18.sp, color = VibeColors.TextSecondary,
+                problem ?: if (updater.canInstall()) {
+                    "Vibe ${update.versionName}. Tap Update, then Install. Your chats and memory stay."
+                } else {
+                    "Vibe ${update.versionName}. Android will ask once to let Vibe install updates: allow it, come back, tap Update."
+                },
+                fontSize = 13.sp, lineHeight = 18.sp,
+                color = if (problem != null) VibeColors.Boundary else VibeColors.TextSecondary,
             )
         }
-        PillButton("Update", filled = true, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
+        PillButton(label, filled = true, enabled = progress == null, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
     }
 }
 

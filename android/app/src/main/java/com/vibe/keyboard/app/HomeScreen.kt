@@ -522,6 +522,19 @@ private fun UpdateCard(update: AppUpdate) {
                 fontSize = 13.sp, lineHeight = 18.sp,
                 color = if (state is UpdateState.Failed) VibeColors.Boundary else VibeColors.TextSecondary,
             )
+            if (state is UpdateState.Failed) {
+                // The fix that worked on the developer's phone: Play Protect's upload
+                // scan was outlasting Android's install time limit.
+                Text(
+                    "Keeps getting stuck? Go to Play Store → Play Protect → ⚙ and turn off " +
+                        "\"Improve harmful app detection\". Keep \"Scan apps with Play Protect\" on. Then tap Try again.",
+                    fontSize = 12.sp, lineHeight = 17.sp, color = VibeColors.TextSecondary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                PillButton("Open Play Protect", filled = false, modifier = Modifier.padding(top = 8.dp)) {
+                    updater.openPlayProtectSettings()
+                }
+            }
         }
         PillButton(label, filled = true, enabled = !busy, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
     }
@@ -544,7 +557,9 @@ private suspend fun shareVibe(context: Context) {
         .putExtra(
             Intent.EXTRA_TEXT,
             "Try Vibe, my texting keyboard 😎 Tap the file and Install (allow installs from WhatsApp if asked). " +
-                "Then open Vibe → AI replies → Create account.",
+                "Then open Vibe → AI replies → Create account. " +
+                "If an update ever gets stuck on Installing: Play Store → Play Protect → ⚙ → turn off " +
+                "\"Improve harmful app detection\".",
         )
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     context.startActivity(Intent.createChooser(send, "Share Vibe").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

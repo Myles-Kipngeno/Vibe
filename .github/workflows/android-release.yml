@@ -45,15 +45,27 @@ jobs:
             echo "::error::ANDROID_SIGNING_KEYSTORE_B64 is not set; an APK signed with another key would not install over the phone's."
             exit 1
           fi
-          mkdir -p ~/.android
-          echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/vibe.keystore"
+          echo "VIBE_SIGNING_KEYSTORE=$RUNNER_TEMP/vibe.keystore" >> "$GITHUB_ENV"
+          # Published builds start at 101, above anything built on the PC.
+          echo "VIBE_VERSION_CODE=$((100 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
 
       - name: Test and build
         working-directory: android
-        env:
-          # Every published build is newer than the last, so the phone offers it as an update.
-          VIBE_VERSION_CODE: ${{ github.run_number }}
         run: ./gradlew testDebugUnitTest assembleDebug --console=plain
+
+      - name: Refuse to publish an APK the phone would reject
+        # SHA-256 of the certificate on the phone's current Vibe. Public, not a secret.
+        env:
+          EXPECTED: 5df7563288cd1a87bdfad48146b42effd6c570ce7f0c7d7f64bc048d24a1e346
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          ACTUAL=$("$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -m1 "SHA-256 digest" | awk '{print $NF}')
+          echo "signed with: $ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Signed with the wrong key ($ACTUAL); it would not install over the phone's Vibe."
+            exit 1
+          fi
 
       - name: Publish at the fixed link
         env:

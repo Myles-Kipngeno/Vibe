@@ -57,6 +57,7 @@ sealed interface CardState {
         val selected: Int = 0,
         /** The server's id per option, for telling it what was used. */
         val optionIds: List<String?> = options.map { null },
+        val optionLabels: List<String> = options.map { "" },
         /** The goal chip in effect, and whether this reply can be steered by one at all. */
         val goal: ReplyGoal? = null,
         val steerable: Boolean = false,

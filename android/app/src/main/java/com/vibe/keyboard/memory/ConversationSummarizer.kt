@@ -34,8 +34,23 @@ object ConversationSummarizer {
             firstMessageAt = messages.firstNotNullOfOrNull { it.sentAt },
             lastMessageAt = messages.lastOrNull { it.sentAt != null }?.sentAt,
             builtAt = now,
+            callbacks = callbacks(messages),
         )
     }
+
+    /**
+     * Lines of his that she laughed at right after. The strongest flirting
+     * tool is bringing one back later -- sparingly -- so the latest few are kept.
+     */
+    private fun callbacks(messages: List<ChatMessage>): List<String> =
+        messages.zipWithNext()
+            .filter { (his, hers) ->
+                his.speaker == Speaker.ME && hers.speaker == Speaker.THEM &&
+                    TextStats.laughRate(listOf(hers.text)) > 0 && TextStats.words(his.text).size >= 3
+            }
+            .map { quote(it.first.text) }
+            .distinct()
+            .takeLast(4)
 
     /** Summary and derived memories, recomputed from the record's messages alone. */
     fun rebuild(record: ConversationRecord, now: Long): ConversationRecord {

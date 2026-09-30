@@ -49,11 +49,14 @@ _JSON_INSTRUCTION = """
 
 ## Output format
 Reply with one JSON object and nothing else -- no markdown, no commentary:
-{"suggestions": [{"text": "...", "rationale": "...", "approach": "..."}]}
-Give three suggestions that differ in approach, not just wording.
-`text` is the message exactly as he would send it. `rationale` is one short
-sentence on why it fits. `approach` is two or three words ("light tease",
-"asks back", "warm close")."""
+{"understanding": "...", "suggestions": [{"text": "...", "style": "...", "fit": 8, "rationale": "...", "approach": "..."}]}
+`understanding`: your stage-1 reading of the moment, one or two sentences.
+`suggestions`: about five candidates in different styles (stage 2), each with:
+`text` -- the message exactly as he would send it; `style` -- one word:
+natural, funny, flirty, playful, creative, romantic, bolder, short (or the
+goal's own style); `fit` -- your honest 1-10 score against the quality check
+(stage 3); `rationale` -- one short sentence on why it fits; `approach` --
+two or three words ("callback tease", "asks back", "warm close")."""
 
 
 class OpenAICompatibleProvider(LLMProvider):

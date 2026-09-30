@@ -205,6 +205,20 @@ class RemoteProviderTest {
         assertEquals("comfort", server.suggestBodies().last()["goal"]!!.jsonPrimitive.content)
     }
 
+    @Test fun `the server's labels reach the card, anything else is dropped`() = runTest {
+        server.suggest = { HttpResult(200, THREE.replace("\"approach\":\"own it\"", "\"approach\":\"Best\"").replace("\"approach\":\"brush off\"", "\"approach\":\"Funny\"")) }
+        val s = provider().suggest(request)
+        assertEquals(listOf("Best", "Funny", ""), s.optionLabels)
+    }
+
+    @Test fun `callbacks and outcome signals travel as memory notes`() = runTest {
+        val summary = request.reply.summary!!.copy(callbacks = listOf("I'd carry you but I'm charging in hugs"))
+        provider().suggest(request.copy(reply = request.reply.copy(summary = summary, outcomeNote = "In this chat… playful 3/4. A signal, not proof.")))
+        val notes = server.suggestBodies().single()["memory_notes"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(notes.any { it.startsWith("Callback material") && "charging in hugs" in it })
+        assertTrue(notes.any { it.contains("A signal, not proof") })
+    }
+
     @Test fun `intents map to the backend's goals and actions`() = runTest {
         val p = provider()
         p.suggest(request.copy(intent = ReplyIntent.GOODNIGHT))

@@ -52,6 +52,8 @@ data class ReplyContext(
     val userStyle: UserStyleProfile? = null,
     /** Messages the user actually wrote, as their voice. Only ever their side. */
     val styleSamples: List<String> = emptyList(),
+    /** How her replies came back after each style he used in this chat. Signals, not proof. */
+    val outcomeNote: String? = null,
 ) {
     companion object {
         val None = ReplyContext()
@@ -79,6 +81,8 @@ data class Suggestion(
     val note: String? = null,
     /** The server's id for each option, for feedback. Null for templates. */
     val optionIds: List<String?> = options.map { null },
+    /** "Best", "Funny", "Bolder"... from the server's select stage; empty for templates. */
+    val optionLabels: List<String> = options.map { "" },
 )
 
 /** What the user did with an option: the backend learns from these. */

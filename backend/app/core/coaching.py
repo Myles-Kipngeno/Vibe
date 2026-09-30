@@ -5,7 +5,10 @@ Monday, Pretty Boy Meir, Zoomology, TrueCam, Jessica Os, TSB Magazine, and
 the flirty-text and funny-question lists). It is written as instructions to
 the model and goes into every generation prompt.
 
-The user asked for everything to be kept, including mean and spicy material,
+The user's own spec for the reply engine (flow over interview, humour,
+original lines over generic ones, flirting levels matched to her signals,
+safe teasing targets, callbacks used sparingly, no manipulation) is folded
+into GUIDE. The user asked for everything to be kept, including mean and spicy material,
 and most of it is: roasts and clap-backs (the Savage goal), innuendo (the
 Spicy goal), going cold when she is rude, asking her for a picture, inviting
 again after "I'm busy", pulling back when he wants space, and a reaction for
@@ -28,38 +31,60 @@ a video.
 from __future__ import annotations
 
 GUIDE = """\
-How good texting works (apply to every option):
-- Tie every message to something in this chat: what she said, a story, a \
-place, a joke you two have. A line that could be sent to anyone is weak.
-- Short. One or two lines, no paragraphs. At most one question, and make it \
-open and fun to answer, never "wyd" or "how was your day".
-- Relevant beats fast: react to what she actually said before adding anything.
-- Share something first, then ask ("terrible day, flat tyre 😩 hope yours \
-went better?") -- it gets a real answer instead of "fine".
-- Show interest and warmth, not check-ins. Affection builds; "just checking \
-in" fades.
-- Compliment her wit, taste, energy or something she did as well as her looks. \
-Hang a compliment on an event ("that song you sent got me through traffic").
-- Callbacks and inside jokes are gold: bring back something from earlier in \
-this chat.
+How good texting works (apply to every candidate):
+- FLOW, not interview. Avoid question-answer-question. Combine a reaction, a \
+bit of humour or teasing, an observation or a small story of his, and at most \
+one question -- or none. BAD: "😂 Nice. What do you like doing for fun?" \
+BETTER: "😂 So you're one of those people who can disappear for 6 hours and \
+come back like nothing happened. What had your attention that long?"
+- Build on what she already said. When a topic dies, look inside the chat \
+first: a callback, a detail she mentioned, a playful observation, a related \
+story, light teasing -- a new topic only when it connects. Never "what's your \
+favourite colour" or "tell me something interesting". She says "I hate \
+cooking 😂" -> "So if I ever come over, I should bring a packed lunch? 😂".
+- Humour is a main strength: playful exaggeration, unexpected comparisons, \
+situational jokes, callbacks, self-aware humour, playful accusations. Not \
+every message is a joke; sometimes the funniest reply is three words. She's \
+sleepy -> "😂 Sleep is really fighting for custody of you tonight."
+- Original over generic. Turn the specific thing she said into the flirt or \
+the joke: "I love late night walks" -> "Late night walks? 😂 Now you're making \
+it dangerously easy for me to plan a date." The best line could only have \
+been written for this conversation. Common pickup lines only rarely, when \
+they truly fit.
+- Flirting matches the chemistry she has shown. Level 1 playful ("you're \
+actually trouble 😂"); 2 light ("you're making it very difficult to behave \
+normally 😂"); 3 confident ("I was trying to have a normal conversation but \
+you're making that unnecessarily difficult"); 4 romantic ("talking to you has \
+become one of those parts of my day I look forward to"). Move up only on her \
+signals -- she flirts first, teases back, compliments him, stays on romantic \
+topics -- and never skip levels. Signals, not guarantees.
+- Tease harmless things: habits, contradictions, playful bragging, her being \
+dramatic, a joke she made. Never her appearance, body, insecurities, family \
+or anything painful. The message is "you're fun", not "I'm putting you down".
+- Callbacks are the strongest flirting tool -- she said "I'm terrible at \
+replying", later "look who decided to beat her own record 😂" -- but use them \
+sparingly; a callback repeated becomes annoying.
+- Short: one sentence, or one or two short ones. Human texture beats polish: \
+"😂 nahhh" is often better than a tidy paragraph. Slight imperfection is fine.
 - Language: mostly English, with just a little Sheng -- one or two everyday \
 words where they fit naturally ("Legs day imekuua? I'll carry you tomorrow", \
-"Saturday I'm free, tuende for nyama choma?"). At least one option in plain \
-English. Simple and cool, never trying hard: no slang pile-ups, no full \
-Kiswahili sentences unless she writes that way.
+"You actually enjoy giving me problems, si ndio?"). At least one candidate in \
+plain English. No slang pile-ups, no full Kiswahili sentences unless she \
+writes that way.
 - Kiswahili and Sheng go where they would naturally fall inside the sentence, \
 never bolted on as an opener. Do not start a reply with a filler greeting or \
 tag -- "Mambo,", "Sawa,", "Cheki,", "Manze," -- and never greet ("Mambo", \
 "Niaje") in the middle of a chat.
-- Confident and light, never needy: no begging, no "good morning ❤️ / miss \
+- Confident, never needy or arrogant: no begging, no "good morning ❤️ / miss \
 you 😢" spam. Emojis: 0-2, to show tone, never stacked.
-- Have your own life. After a warm streak it is fine to be less available -- \
-reply when he genuinely has time, and let her come to him sometimes.
-- Bold is attractive when it is playful: an over-the-top compliment with a \
-wink ("I had compliments ready but they evaporated") lands better than a \
-careful one.
+- Memorable beats generic: a smile, a funny mental image, a playful \
+challenge, a shared joke, warmth. Instead of "Goodnight ❤️" -> "😂 Go sleep \
+before you start blaming me for keeping you awake. Goodnight, trouble." -- \
+when it fits what they already have.
 - When she is laughing or engaged, that is the moment to move toward a plan; \
 good moods fade.
+- Don't keep a chat alive artificially. If it is winding down naturally, a \
+warm close or letting it rest is the right move, not another question.
 - "I'm busy" or "not today" is not a no: accept it lightly and invite again \
 another day, casually. A clear no, "stop", or "I have someone" is the end -- \
 exit with style ("Lucky guy. Have a good one 😊"), never push."""
@@ -71,8 +96,9 @@ go short and cool ("okay 😂") and let her come back.
 - Teasing or roasting him: roast back harder, with a smile. Never get defensive.
 - Dry replies ("ok", "lol", "hmm"): stop asking questions. Change the energy \
 with a bold tease or a callback -- or pull back and let the chat rest.
-- Slow to reply or left him on read: no double-texting, no "?". Leave it, or \
-one light message later that stands on its own.
+- Slow to reply or left him on read: no "?" and no guilt. When she comes \
+back, pick up warmly or with a light callback; a short reply is not \
+automatically rejection.
 - Jealous ("who's she?"): tease her about it or reassure lightly -- never \
 make her anxious on purpose.
 - Upset with him: own his part in one short line, no speeches, no excuses.
@@ -82,11 +108,12 @@ make her anxious on purpose.
 
 PLAYBOOK: dict[str, str] = {
     "flirt": """\
-Flirt: every option must be unmistakably flirting -- she should read it and \
-feel he's into her. Anything a friend, a brother or a coach could send fails: \
+Flirt: every candidate must be unmistakably flirting -- she should read it \
+and feel he's into her -- at the level her own messages support (see the \
+levels above; one notch above hers at most). Anything a friend, a brother or a coach could send fails: \
 care-only lines ("rest up", "take it easy", "goodnight", "nap like a champ", \
 "impressive hustle") fail unless they carry a flirty twist.
-Give three different kinds of flirt:
+Cover different kinds of flirt across the candidates:
 1. Bold: say the attraction out loud, or what he would do about it. "Honestly \
 you're a distraction and I'm not even mad" / "Legs day? I'll carry you, but \
 I'm charging in hugs 😏".
@@ -195,8 +222,8 @@ def coaching_section(goal: str) -> str:
         + WHEN_SHE
         + "\n\n"
         + play
-        + "\n\nReference lines -- the energy he likes. Adapt one to what she "
-        "actually said if it fits; never paste one as-is, and skip them when "
-        "none fits:\n"
+        + "\n\nReference lines -- energy only. Original lines built from this chat "
+        "come first; use one of these rarely, adapted to what she actually said, "
+        "never pasted as-is:\n"
         + lines
     )

@@ -55,7 +55,7 @@ def _build(choice: str, settings: Settings) -> LLMProvider:
             base_url=base_url,
             model=settings.model_for(choice),
             api_key=key,
-            max_tokens=min(settings.max_tokens, 1500),
+            max_tokens=min(settings.max_tokens, 3000),  # ~5 scored candidates plus the reading
         )
 
     raise ProviderError(

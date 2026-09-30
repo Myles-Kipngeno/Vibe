@@ -63,6 +63,7 @@ class RemoteAIProvider(
                     isPreview = response.isMock,
                     options = options,
                     optionIds = usable.map { it.id },
+                    optionLabels = usable.map { it.approach.takeIf { a -> a in LABELS }.orEmpty() },
                     note = if (response.isMock) "Server has no model key · templates" else null,
                 )
                 response.blocked -> throw ReplyBlockedException(response.blockedReason ?: "Vibe won't write this one.")
@@ -199,6 +200,12 @@ class RemoteAIProvider(
             s.sharedReferences.take(2).forEach { notes += "Shared reference: “$it”" }
             s.theirStyle?.let { notes += "How the other person texts, measured over ${s.basedOnMessages} messages: ${it.traits().joinToString(", ")}" }
         }
+        val calls = reply.summary?.callbacks.orEmpty()
+        if (calls.isNotEmpty()) {
+            notes += "Callback material, lines of his she laughed at (bring one back only if it fits, sparingly): " +
+                calls.joinToString(" / ") { "“$it”" }
+        }
+        reply.outcomeNote?.let { notes += it }
         reply.snippets.forEach { notes += "Earlier, ${if (it.speaker == Speaker.ME) "the user" else "the other person"} wrote: “${it.text}”" }
         return notes.distinct().take(24).map { it.take(400) }
     }
@@ -213,6 +220,8 @@ class RemoteAIProvider(
     }
 
     private companion object {
+        /** The labels the server's select stage gives; anything else is not shown. */
+        val LABELS = setOf("Best", "Natural", "Funny", "Flirty", "Playful", "Original", "Romantic", "Bolder", "Short", "Sweet", "Savage", "Spicy", "Support")
         val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
     }
 }

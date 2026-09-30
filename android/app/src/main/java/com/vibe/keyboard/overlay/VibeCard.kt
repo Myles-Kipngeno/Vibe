@@ -66,7 +66,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vibe.keyboard.ai.ReplyGoal
@@ -344,16 +349,24 @@ private fun OptionList(card: CardState.Suggestion, actions: CardActions, compact
             )
         } else {
             card.options.forEachIndexed { i, option ->
-                OptionRow(option, selected = i == card.selected) { actions.selectOption(i) }
+                OptionRow(option, selected = i == card.selected, label = card.optionLabels.getOrNull(i).orEmpty()) {
+                    actions.selectOption(i)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun OptionRow(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun OptionRow(text: String, selected: Boolean, label: String = "", onClick: () -> Unit) {
     Text(
-        text,
+        if (label.isBlank()) AnnotatedString(text) else buildAnnotatedString {
+            withStyle(SpanStyle(color = VibeColors.Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)) {
+                append(label.uppercase())
+            }
+            append("  ")
+            append(text)
+        },
         style = VibeType.CardBody.copy(fontSize = 15.sp, lineHeight = 20.sp),
         color = if (selected) VibeColors.TextPrimary else VibeColors.TextSecondary,
         maxLines = 2,

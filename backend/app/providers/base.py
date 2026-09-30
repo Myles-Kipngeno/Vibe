@@ -43,14 +43,23 @@ class LLMProvider(abc.ABC):
 
 
 class GeneratedSuggestion(BaseModel):
-    """One reply option as produced by a provider."""
+    """One reply option as produced by a provider.
+
+    `style` and `fit` come from the generate-then-select pipeline: the model
+    drafts several candidates in different styles and scores each against the
+    quality check; the server picks. Templates leave them empty.
+    """
 
     text: str
     rationale: str
     approach: str
+    style: str = ""
+    fit: float | None = None
 
 
 class GenerationResult(BaseModel):
     """The structured payload every provider must return."""
 
+    # The model's reading of the moment before it wrote anything (stage 1).
+    understanding: str = ""
     suggestions: list[GeneratedSuggestion]

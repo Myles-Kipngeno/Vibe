@@ -478,30 +478,21 @@ private fun UpdateCard(update: AppUpdate) {
     val context = LocalContext.current
     val updater = remember { AppUpdater(context) }
     val scope = rememberCoroutineScope()
-    var progress by remember { mutableStateOf<Int?>(null) }
-    var problem by remember { mutableStateOf<String?>(null) }
-    // The installer is open. A successful update restarts Vibe and this card
-    // goes away; if the card is still here, the installer stalled.
-    var handedOver by remember { mutableStateOf(false) }
-    val label = when {
-        progress != null -> "${progress}%"
-        problem != null -> "Try again"
-        handedOver -> "Update again"
-        else -> "Update"
+    val state by AppUpdater.state.collectAsState()
+    val busy = state is UpdateState.Downloading || state is UpdateState.Installing
+    val label = when (val s = state) {
+        is UpdateState.Downloading -> "${s.percent}%"
+        UpdateState.Installing -> "Installing"
+        is UpdateState.Failed -> "Try again"
+        UpdateState.Idle -> "Update"
     }
     val onUpdate = {
-        if (progress == null) {
-            problem = null
+        if (!busy) {
             if (!updater.canInstall()) {
                 // Android asks once; come back and tap Update again.
                 updater.askInstallPermission()
             } else {
-                progress = 0
-                scope.launch {
-                    problem = updater.downloadAndInstall(update.downloadUrl) { progress = it }
-                    handedOver = problem == null
-                    progress = null
-                }
+                scope.launch { updater.update(update.downloadUrl) }
             }
         }
     }
@@ -517,21 +508,22 @@ private fun UpdateCard(update: AppUpdate) {
         Column(Modifier.weight(1f)) {
             Text("Update available", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = VibeColors.TextPrimary)
             Text(
-                problem ?: if (handedOver) {
-                    // Play Protect scans every app from outside the Play Store; if Android
-                    // stops its process mid-scan, the installer waits for an answer that
-                    // never comes. A second attempt starts a fresh scan.
-                    "If Android stays on \"Installing…\" for more than a minute, close it and tap Update again."
-                } else if (updater.canInstall()) {
-                    "Vibe ${update.versionName}. Tap Update, then Install. Your chats and memory stay."
-                } else {
-                    "Vibe ${update.versionName}. Android will ask once to let Vibe install updates: allow it, come back, tap Update."
+                when (val s = state) {
+                    is UpdateState.Failed -> s.reason
+                    UpdateState.Installing ->
+                        "Installing Vibe ${update.versionName}. If Android asks, tap Update. Vibe restarts when it's done."
+                    is UpdateState.Downloading -> "Downloading Vibe ${update.versionName}…"
+                    UpdateState.Idle -> if (updater.canInstall()) {
+                        "Vibe ${update.versionName}. Tap Update. Your chats and memory stay."
+                    } else {
+                        "Vibe ${update.versionName}. Android will ask once to let Vibe install updates: allow it, come back, tap Update."
+                    }
                 },
                 fontSize = 13.sp, lineHeight = 18.sp,
-                color = if (problem != null) VibeColors.Boundary else VibeColors.TextSecondary,
+                color = if (state is UpdateState.Failed) VibeColors.Boundary else VibeColors.TextSecondary,
             )
         }
-        PillButton(label, filled = true, enabled = progress == null, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
+        PillButton(label, filled = true, enabled = !busy, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
     }
 }
 

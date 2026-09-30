@@ -2,6 +2,7 @@ package com.vibe.keyboard.app
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
@@ -60,6 +61,9 @@ import com.vibe.keyboard.settings.VibeSettings
 import com.vibe.keyboard.ui.VibeIcons
 import com.vibe.keyboard.ui.VibeMark
 import com.vibe.keyboard.ui.theme.VibeColors
+import androidx.core.content.pm.PackageInfoCompat
+import com.vibe.keyboard.remote.AppUpdate
+import com.vibe.keyboard.remote.UpdateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -129,6 +133,11 @@ fun HomeScreen(onPractice: () -> Unit, onImport: () -> Unit, onMemory: () -> Uni
             } else {
                 ReadyBanner()
             }
+
+            // A newer build published on GitHub: one tap opens the download.
+            var update by remember { mutableStateOf<AppUpdate?>(null) }
+            LaunchedEffect(Unit) { update = UpdateChecker().check(installedVersionCode(context)) }
+            update?.let { UpdateCard(it) { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it.downloadUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
 
             TryItCard(onPractice)
 
@@ -449,6 +458,33 @@ fun PillButton(
         )
     }
 }
+
+@Composable
+private fun UpdateCard(update: AppUpdate, onUpdate: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(VibeColors.Accent.copy(alpha = 0.12f))
+            .border(1.dp, VibeColors.Accent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Update available", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = VibeColors.TextPrimary)
+            Text(
+                "Vibe ${update.versionName}. Tap Update, then Install. Your chats and memory stay.",
+                fontSize = 13.sp, lineHeight = 18.sp, color = VibeColors.TextSecondary,
+            )
+        }
+        PillButton("Update", filled = true, modifier = Modifier.padding(start = 12.dp), onClick = onUpdate)
+    }
+}
+
+private fun installedVersionCode(context: Context): Long =
+    runCatching {
+        PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(context.packageName, 0))
+    }.getOrDefault(Long.MAX_VALUE) // unknown: never nag
 
 private fun appVersion(context: Context): String =
     runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"

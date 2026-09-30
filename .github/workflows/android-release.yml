@@ -73,9 +73,12 @@ jobs:
           RUN: ${{ github.run_number }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk vibe.apk
+          # The app reads this to offer "Update available".
+          printf '{"versionCode": %s, "versionName": "0.2.%s"}\n' "$VIBE_VERSION_CODE" "$VIBE_VERSION_CODE" > version.json
+          cat version.json
           gh release delete app-latest --yes --cleanup-tag || true
-          gh release create app-latest vibe.apk \
-            --title "Vibe app, build $RUN" \
+          gh release create app-latest vibe.apk version.json \
+            --title "Vibe 0.2.$VIBE_VERSION_CODE" \
             --notes "Open this on the phone to update Vibe: https://github.com/${{ github.repository }}/releases/download/app-latest/vibe.apk
 
           Built from ${{ github.sha }}. Installs over the existing app and keeps its data." \

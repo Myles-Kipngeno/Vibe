@@ -47,6 +47,18 @@ class AppUpdater(private val context: Context) {
     /** Android asks once, per app, before it may install updates. */
     fun canInstall(): Boolean = context.packageManager.canRequestPackageInstalls()
 
+    /**
+     * Play Protect's own settings, where "Improve harmful app detection" lives.
+     * With it on, Play Protect uploads each new Vibe version to Google for
+     * analysis, and on the user's phone that analysis outlasted Android's time
+     * limit and froze the install. Falls back to the Play Store app.
+     */
+    fun openPlayProtectSettings() {
+        val direct = Intent("com.google.android.gms.settings.VERIFY_APPS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val store = context.packageManager.getLaunchIntentForPackage("com.android.vending")?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(direct) }.onFailure { store?.let { runCatching { context.startActivity(it) } } }
+    }
+
     fun askInstallPermission() {
         context.startActivity(
             Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))

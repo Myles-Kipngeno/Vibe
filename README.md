@@ -52,6 +52,13 @@ builds made on the PC (stored as the `ANDROID_SIGNING_KEYSTORE_B64` secret).
 The version is at the bottom of the app's home screen. Changes to *replies*
 (the server) need no install at all -- Render deploys those.
 
+**If an update sticks on "Installing…":** Play Store → Play Protect → ⚙ →
+turn off *Improve harmful app detection* (keep *Scan apps with Play Protect*
+on), then tap Update again. With it on, Play Protect uploads each new version
+of an app from outside the Play Store to Google for analysis, and that can
+outlast Android's install time limit. The update card shows this tip and an
+*Open Play Protect* button whenever an install fails.
+
 Once a published build is on the phone, a build from the PC has a lower
 version number: install it with `adb install -r -d`.
 
